@@ -27,6 +27,7 @@ from pyrogram.errors import (
     BadMsgNotification,
     RPCError
 )
+from pyrogram.types import User
 
 from module import (
     console,
@@ -465,17 +466,19 @@ async def get_chunk(
 
 
 class TelegramRestrictedMediaDownloaderSession(Session):
-    WAIT_TIMEOUT = 20
     START_TIMEOUT = 10
+    WAIT_TIMEOUT = 20
+    SLEEP_THRESHOLD = 10
     MAX_RETRIES = 15
+    RETRY_DELAY = 1
 
     async def invoke(
             self,
             query: TLObject,
             retries: int = MAX_RETRIES,
             timeout: float = WAIT_TIMEOUT,
-            sleep_threshold: float = Session.SLEEP_THRESHOLD,
-            retry_delay: float = Session.RETRY_DELAY
+            sleep_threshold: float = SLEEP_THRESHOLD,
+            retry_delay: float = RETRY_DELAY
     ):
         try:
             await asyncio.wait_for(self.is_started.wait(), self.WAIT_TIMEOUT)
@@ -505,14 +508,20 @@ class TelegramRestrictedMediaDownloaderSession(Session):
                     amount,
                     query_name,
                 )
-                console.log(f'[{self.client.name}]请求频繁,"{query_name}"要求等待{amount}秒后继续运行。')
+                console.log(
+                    f'[{self.client.name}]请求频繁,"{query_name}"要求等待{amount}秒后继续运行。',
+                    style='#FF4689'
+                )
 
                 await asyncio.sleep(amount)
             except (OSError, InternalServerError, ServiceUnavailable) as e:
                 log.info(
                     '[%s] Retrying "%s" due to: %s', attempt, query_name, str(e) or repr(e)
                 )
-                console.log(f'[{attempt}/{retries}]尝试重连,重新调用"{query_name}",{_t(KeyWord.REASON)}:"{str(e) or repr(e)}"')
+                console.log(
+                    f'[{attempt}/{retries}]由于"{str(e) or repr(e)}"导致无法调用"{query_name}",正在尝试重连。',
+                    style='#FF4689'
+                )
 
                 await asyncio.sleep(retry_delay)
 
@@ -557,7 +566,7 @@ class TelegramRestrictedMediaDownloaderSession(Session):
             result = self.results.pop(msg_id).value
 
             if result is None:
-                raise TimeoutError('Request timed out')
+                raise TimeoutError('请求超时')
 
             if isinstance(result, raw.types.RpcError):
                 if isinstance(

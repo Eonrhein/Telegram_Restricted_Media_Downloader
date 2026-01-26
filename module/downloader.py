@@ -1245,7 +1245,7 @@ class TelegramRestrictedMediaDownloader(Bot):
         try:
             await self.create_download_task(message_ids=message.link, single_link=True)
         except Exception as e:
-            log.exception(f'监听下载出现错误,{_t(KeyWord.REASON)}:{e}')
+            log.exception(f'监听下载出现错误,{_t(KeyWord.REASON)}:"{e}"')
 
     def check_type(self, message: pyrogram.types.Message):
         for dtype, is_forward in self.gc.forward_type.items():
@@ -1343,7 +1343,7 @@ class TelegramRestrictedMediaDownloader(Bot):
             log.error(
                 f'监听转发出现错误,{_t(KeyWord.REASON)}:{e}频道性质可能发生改变,包括但不限于(频道解散、频道名改变、频道类型改变、该账户没有在目标频道上传的权限、该账号被当前频道移除)。')
         except Exception as e:
-            log.exception(f'监听转发出现错误,{_t(KeyWord.REASON)}:{e}')
+            log.exception(f'监听转发出现错误,{_t(KeyWord.REASON)}:"{e}"')
 
     async def resume_download(
             self,
@@ -1635,7 +1635,6 @@ class TelegramRestrictedMediaDownloader(Bot):
         else:
             self.app.current_task_num -= 1
             self.event.set()  # v1.3.4 修复重试下载被阻塞的问题。
-            self.queue.task_done()
             if self.__check_download_finish(
                     message=message,
                     sever_file_size=sever_file_size,
@@ -1652,6 +1651,7 @@ class TelegramRestrictedMediaDownloader(Bot):
                         with_upload=with_upload,
                         file_path=os.path.join(self.env_save_directory(message), file_name)
                     )
+                self.queue.task_done()
             else:
                 if retry_count < self.app.max_download_retries:
                     retry_count += 1
@@ -1682,6 +1682,7 @@ class TelegramRestrictedMediaDownloader(Bot):
                     )
                     DownloadTask.set_error(link=link, key=file_name, value=_error.replace('。', ''))
                     self.bot_task_link.discard(link)
+                    self.queue.task_done()
                 link, file_name = None, None
             self.pb.progress.remove_task(task_id=task_id)
         return link, file_name
@@ -1911,8 +1912,8 @@ class TelegramRestrictedMediaDownloader(Bot):
             console.log('没有找到有效链接。', style='#FF4689')
             return None
 
-    @staticmethod
-    def __retry_call(notice, _future):
+    def __retry_call(self, notice, _future):
+        self.queue.task_done()
         console.log(notice, style='#FF4689')
 
     async def __download_media_from_links(self) -> None:
@@ -1956,7 +1957,7 @@ class TelegramRestrictedMediaDownloader(Bot):
         links: Union[set, None] = self.__process_links(link=self.app.links)
         # 将初始任务添加到队列中。
         [await self.loop.create_task(self.create_download_task(message_ids=link, retry=None)) for link in
-         links] if links else None
+         sorted(links)] if links else None
         # 处理队列中的任务与机器人事件。
         while not self.queue.empty() or self.is_bot_running:
             result = await self.queue.get()
@@ -1976,12 +1977,10 @@ class TelegramRestrictedMediaDownloader(Bot):
     def run(self) -> None:
         record_error: bool = False
         try:
+            MetaData.print_helper()
             MetaData.print_meta()
-            self.app.print_config_table(
-                links=self.app.links,
-                download_type=self.app.download_type,
-                proxy=self.app.proxy
-            )
+            self.app.print_env_table(self.app)
+            self.app.print_config_table(self.app)
             self.loop.run_until_complete(self.__download_media_from_links())
         except KeyError as e:
             record_error: bool = True
