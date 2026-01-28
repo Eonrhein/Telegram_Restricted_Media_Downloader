@@ -69,7 +69,7 @@ class TelegramUploader:
         self.max_upload_task = max_upload_task
         self.max_retry_count = max_retry_count
         self.is_premium: bool = is_premium
-        self.notify: Callable = notify
+        UploadTask.NOTIFY = notify
 
     async def resume_upload(
             self,
@@ -270,6 +270,7 @@ class TelegramUploader:
             except (ChatAdminRequired, ChannelPrivate_400, ChannelPrivate_406) as e:
                 upload_task.error_msg = str(e)
                 upload_task.status = UploadStatus.FAILURE
+                return None
             except Exception as e:
                 console.log(
                     f'{_t(KeyWord.UPLOAD_TASK)}'
@@ -355,7 +356,6 @@ class TelegramUploader:
             log.warning(f'无法删除"{os.path.basename(file_path)}"的上传缓存管理文件。')
         else:
             log.info(f'成功删除"{os.path.basename(file_path)}"的上传缓存管理文件。')
-        asyncio.create_task(self.notify(f'"{file_path}"已上传完成。')) if isinstance(self.notify, Callable) else None
         self.event.set()
         safe_delete(file_path) if with_delete else None
         upload_task.status = UploadStatus.SUCCESS

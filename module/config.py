@@ -21,10 +21,11 @@ from module import (
     PLATFORM
 )
 from module.language import _t
-from module.parser import TelegramRestrictedMediaDownloaderArgumentParser
+from module.parser import PARSE_ARGS
 from module.path_tool import (
     gen_backup_config,
-    safe_delete
+    safe_delete,
+    safe_scan_directory_file
 )
 from module.enums import (
     KeyWord,
@@ -167,9 +168,8 @@ class UserConfig(BaseConfig):
 
     def __init__(self):
         super().__init__()
-        self.parse_args = TelegramRestrictedMediaDownloaderArgumentParser(add_help=False).parse_args()
-        self.config_path: str = self.parse_args.config if os.path.isfile(
-            self.parse_args.config) and self.parse_args.config.endswith('.yaml') else UserConfig.PATH
+        self.config_path: str = PARSE_ARGS.config if os.path.isfile(
+            PARSE_ARGS.config) and PARSE_ARGS.config.endswith('.yaml') else UserConfig.PATH
         self.platform: str = PLATFORM
         self.history_timestamp: dict = {}
         self.input_link: list = []
@@ -177,8 +177,8 @@ class UserConfig(BaseConfig):
         self.difference_timestamp: dict = {}
         self.download_type: list = []
         self.record_dtype: set = set()
-        self.work_directory: str = self.parse_args.session or UserConfig.WORK_DIRECTORY
-        self.temp_directory: str = self.parse_args.temp or UserConfig.TEMP_DIRECTORY
+        self.work_directory: str = PARSE_ARGS.session or UserConfig.WORK_DIRECTORY
+        self.temp_directory: str = PARSE_ARGS.temp or UserConfig.TEMP_DIRECTORY
         self.record_flag: bool = False
         self.modified: bool = False
         self.get_last_history_record()
@@ -192,7 +192,7 @@ class UserConfig(BaseConfig):
         self.download_type: list = self.config.get('download_type')
         self.is_shutdown: bool = self.config.get('is_shutdown')
         self.links: str = self.config.get('links')
-        self.max_download_task: int = self.config.get('max_tasks', {'download': 5}).get('download')
+        self.max_download_task: int = self.config.get('max_tasks', {'download': 3}).get('download')
         self.max_download_retries: int = self.config.get('max_retries', {'download': 5}).get('download')
         self.max_upload_task: int = (self.config.get('max_tasks') or {}).get('upload', 3) or 3
         self.max_upload_retries: int = (self.config.get('max_retries') or {}).get('upload', 3) or 3
@@ -204,7 +204,7 @@ class UserConfig(BaseConfig):
         """获取最近一次保存的历史配置文件。"""
         # 首先判断是否存在目录文件。
         try:
-            res: list = os.listdir(UserConfig.ABSOLUTE_BACKUP_DIRECTORY)
+            res: list = safe_scan_directory_file(UserConfig.ABSOLUTE_BACKUP_DIRECTORY)
         except FileNotFoundError:
             return
         except Exception as e:
@@ -385,7 +385,7 @@ class UserConfig(BaseConfig):
             _bot_token: Union[str, None] = pre_load_config.get('bot_token')
             _links: Union[str, None] = pre_load_config.get('links')
             _save_directory: Union[str, None] = pre_load_config.get('save_directory')
-            _max_download_task: Union[int, None] = pre_load_config.get('max_tasks', {'download': 5}).get('download')
+            _max_download_task: Union[int, None] = pre_load_config.get('max_tasks', {'download': 3}).get('download')
             _max_download_retries: Union[int, None] = pre_load_config.get('max_retries', {'download': 5}).get(
                 'download')
             _download_type: Union[list, None] = pre_load_config.get('download_type')
@@ -441,7 +441,7 @@ class UserConfig(BaseConfig):
                     pre_load_config['save_directory'] = save_directory
             if not _max_download_task or self.re_config:
                 max_download_task, record_flag = gsp.get_max_download_task(
-                    last_record=self.last_record.get('max_tasks', {'download': 5}).get('download')).values()
+                    last_record=self.last_record.get('max_tasks', {'download': 3}).get('download')).values()
                 if record_flag:
                     self.record_flag = record_flag
                     pre_load_config.get('max_tasks')['download'] = max_download_task

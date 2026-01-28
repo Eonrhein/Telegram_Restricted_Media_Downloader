@@ -10,13 +10,14 @@ import math
 import asyncio
 
 from functools import wraps
-from typing import Union
+from typing import Union, Optional, Callable
 
 import pyrogram
 
 from module import console, log
 from module.language import _t
 from module.stdio import MetaData
+from module.parser import PARSE_ARGS
 from module.path_tool import (
     safe_delete,
     truncate_filename
@@ -104,7 +105,7 @@ class DownloadTask:
                 )
                 DownloadTask.LINK_INFO.get(link)['error_msg'] = {}
                 DownloadTask.COMPLETE_LINK.add(link)
-                asyncio.create_task(self.done_notice(f'"{link}"已下载完成。'))
+                asyncio.create_task(self.done_notice(f'"{link}"下载完成。'))
             return res
 
         return wrapper
@@ -127,10 +128,11 @@ class DownloadTask:
 
 
 class UploadTask:
-    DIRECTORY_NAME: str = os.path.join(os.path.dirname(os.path.abspath(sys.argv[0])), 'temp')
+    DIRECTORY_NAME: str = PARSE_ARGS.temp or os.path.join(os.path.dirname(os.path.abspath(sys.argv[0])), 'temp')
     PART_SIZE: int = 512 * 1024
-    TASKS = set()
-    TASK_COUNTER = 0
+    TASKS: set = set()
+    TASK_COUNTER: int = 0
+    NOTIFY: Optional[Callable] = None
 
     def __init__(
             self,
@@ -186,6 +188,7 @@ class UploadTask:
                                 f'{_t(KeyWord.SIZE)}:{MetaData.suitable_units_display(self.file_size)},'
                                 f'{_t(KeyWord.STATUS)}:{_t(UploadStatus.SUCCESS)}{more}。',
                             )
+                            self.notice(f'"{self.file_path}" ⬆️ "{self.chat_id}"上传完成{more}。')
                         elif value == UploadStatus.FAILURE:
                             log.error(
                                 f'{_t(KeyWord.UPLOAD_TASK)}'
@@ -195,6 +198,7 @@ class UploadTask:
                                 f'{_t(KeyWord.REASON)}:"{self.error_msg}",'
                                 f'{_t(KeyWord.STATUS)}:{_t(str(value))}。'
                             )
+                            self.notice(f'"{self.file_path}" ⬆️ "{self.chat_id}"上传失败。')
                     elif name == 'chat_id':
                         if value:
                             self.upload_manager_path: str = os.path.join(
@@ -207,6 +211,14 @@ class UploadTask:
 
             else:
                 super().__setattr__(name, value)
+
+    def notice(self, message: str):
+        if isinstance(self.NOTIFY, Callable):
+            asyncio.create_task(
+                self.NOTIFY(
+                    message
+                )
+            )
 
     @property
     def complete_task(self) -> int:
