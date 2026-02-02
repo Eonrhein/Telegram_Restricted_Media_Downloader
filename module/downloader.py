@@ -10,7 +10,7 @@ import datetime
 
 from functools import partial
 from sqlite3 import OperationalError
-from typing import Union, Callable, Optional, Dict
+from typing import Union, Callable, Optional, Dict, Set
 
 import pyrogram
 from pyrogram.enums.parse_mode import ParseMode
@@ -91,14 +91,14 @@ class TelegramRestrictedMediaDownloader(Bot):
 
     def __init__(self):
         super().__init__()
-        self.loop = asyncio.get_event_loop()
-        self.event = asyncio.Event()
-        self.queue = asyncio.Queue()
-        self.app = Application()
+        self.loop: asyncio.AbstractEventLoop = asyncio.get_event_loop()
+        self.event: asyncio.Event = asyncio.Event()
+        self.queue: asyncio.Queue = asyncio.Queue()
+        self.app: Application = Application()
         self.is_running: bool = False
-        self.running_log: set = set()
+        self.running_log: Set[bool] = set()
         self.running_log.add(self.is_running)
-        self.pb = ProgressBar()
+        self.pb: ProgressBar = ProgressBar()
         self.uploader: Union[TelegramUploader, None] = None
         self.cd: Union[CallbackData, None] = None
 
@@ -137,7 +137,8 @@ class TelegramRestrictedMediaDownloader(Bot):
         last_bot_message: Union[pyrogram.types.Message, None] = link_meta.get('last_bot_message')
         exist_link: set = set([_ for _ in right_link if _ in self.bot_task_link])
         exist_link.update(right_link & DownloadTask.COMPLETE_LINK)
-        right_link -= exist_link
+        if not with_upload:
+            right_link -= exist_link
         if last_bot_message:
             await self.safe_edit_message(
                 client=client,
@@ -145,7 +146,7 @@ class TelegramRestrictedMediaDownloader(Bot):
                 last_message_id=last_bot_message.id,
                 text=self.update_text(
                     right_link=right_link,
-                    exist_link=exist_link,
+                    exist_link=exist_link if not with_upload else None,
                     invalid_link=invalid_link
                 )
             )
@@ -169,7 +170,7 @@ class TelegramRestrictedMediaDownloader(Bot):
             last_message_id=last_bot_message.id,
             text=self.update_text(
                 right_link=right_link,
-                exist_link=exist_link,
+                exist_link=exist_link if not with_upload else None,
                 invalid_link=invalid_link
             )
         )
@@ -310,7 +311,8 @@ class TelegramRestrictedMediaDownloader(Bot):
                     with_upload={
                         'link': target_link,
                         'file_name': None,
-                        'with_delete': self.gc.upload_delete
+                        'with_delete': self.gc.upload_delete,
+                        'send_as_media_group': True
                     }
                 )
             await kb.task_assign_button()
@@ -849,13 +851,21 @@ class TelegramRestrictedMediaDownloader(Bot):
                     message_id=message_id,
                     disable_notification=True
                 )
-            else:
-                await self.app.client.copy_message(
+            elif getattr(message, 'text', False):
+                await self.app.client.send_message(
                     chat_id=target_chat_id,
-                    from_chat_id=origin_chat_id,
-                    message_id=message_id,
+                    text=message.text,
                     disable_notification=True,
                     protect_content=False
+                )
+            else:
+                await self.app.client.forward_messages(
+                    chat_id=target_chat_id,
+                    from_chat_id=origin_chat_id,
+                    message_ids=message_id,
+                    disable_notification=True,
+                    protect_content=False,
+                    hide_sender_name=True
                 )
             p_message_id = ','.join(map(str, media_group)) if media_group else message_id
             console.log(
@@ -873,6 +883,14 @@ class TelegramRestrictedMediaDownloader(Bot):
             )
         except (ChatForwardsRestricted_400, ChatForwardsRestricted_406):
             if not download_upload:
+                if (
+                        getattr(getattr(message, 'chat', None), 'is_creator', False) or
+                        getattr(getattr(message, 'chat', None), 'is_admin', False)
+                ) and (
+                        getattr(getattr(message, 'from_user', None), 'id', -1) ==
+                        getattr(getattr(client, 'me', None), 'id', None)
+                ):
+                    return None
                 raise
             link = message.link
             if not self.gc.download_upload:
@@ -894,7 +912,8 @@ class TelegramRestrictedMediaDownloader(Bot):
                 with_upload={
                     'link': target_link,
                     'file_name': None,
-                    'with_delete': self.gc.upload_delete
+                    'with_delete': self.gc.upload_delete,
+                    'send_as_media_group': True
                 }
             )
             p = f'{_t(KeyWord.DOWNLOAD_AND_UPLOAD_TASK)}{_t(KeyWord.CHANNEL)}:"{target_chat_id}",{_t(KeyWord.LINK)}:"{link}"。'
@@ -978,6 +997,8 @@ class TelegramRestrictedMediaDownloader(Bot):
                     )
                     record_id.append(message_id)
                 except (ChatForwardsRestricted_400, ChatForwardsRestricted_406):
+                    # TODO 存在内容保护限制时，文本类型的消息无需下载，而是直接send_message。
+                    # TODO 存在内容保护限制时，下载后上传的消息转发时无法过滤类型。
                     self.cd.data = {
                         'origin_link': origin_link,
                         'target_link': target_link,
@@ -998,7 +1019,7 @@ class TelegramRestrictedMediaDownloader(Bot):
                         return None
                     await client.send_message(
                         chat_id=message.from_user.id,
-                        text=f'`{origin_link}`\n{channel}存在内容保护限制(已自动使用下载后上传)。',
+                        text=f'`{origin_link}`\n{channel}存在内容保护限制(已自动使用下载后上传)。\n⚠️通过`/forward`命令发送的下载后上传的消息,无法按照`[转发设置]`过滤类型',
                         parse_mode=ParseMode.MARKDOWN,
                         reply_parameters=ReplyParameters(message_id=message.id)
                     )
@@ -1009,7 +1030,8 @@ class TelegramRestrictedMediaDownloader(Bot):
                         with_upload={
                             'link': target_link,
                             'file_name': None,
-                            'with_delete': self.gc.upload_delete
+                            'with_delete': self.gc.upload_delete,
+                            'send_as_media_group': True
                         }
                     )
                     break
@@ -1455,7 +1477,7 @@ class TelegramRestrictedMediaDownloader(Bot):
             link: str,
             message: Union[pyrogram.types.Message, list],
             retry: dict,
-            with_upload: Union[dict, None] = None,
+            with_upload: Optional[dict] = None,
             diy_download_type: Optional[list] = None
     ) -> None:
         retry_count = retry.get('count')
@@ -1652,10 +1674,17 @@ class TelegramRestrictedMediaDownloader(Bot):
                 )
                 DownloadTask.COMPLETE_LINK.add(link)
                 if self.uploader:
-                    self.uploader.download_upload(
-                        with_upload=with_upload,
-                        file_path=os.path.join(self.env_save_directory(message), file_name)
-                    )
+                    if with_upload and isinstance(with_upload, dict):
+                        try:
+                            media_group = message.get_media_group()
+                        except ValueError:
+                            media_group = None
+                        with_upload['message_id'] = message.id
+                        with_upload['media_group'] = media_group
+                        self.uploader.download_upload(
+                            with_upload=with_upload,
+                            file_path=os.path.join(self.env_save_directory(message), file_name)
+                        )
         else:
             self.app.current_task_num -= 1
             self.event.set()  # v1.3.4 修复重试下载被阻塞的问题。
@@ -1671,10 +1700,17 @@ class TelegramRestrictedMediaDownloader(Bot):
                     num=self.app.current_task_num
                 )
                 if self.uploader:
-                    self.uploader.download_upload(
-                        with_upload=with_upload,
-                        file_path=os.path.join(self.env_save_directory(message), file_name)
-                    )
+                    if with_upload and isinstance(with_upload, dict):
+                        try:
+                            media_group = message.get_media_group()
+                        except ValueError:
+                            media_group = None
+                        with_upload['message_id'] = message.id
+                        with_upload['media_group'] = media_group
+                        self.uploader.download_upload(
+                            with_upload=with_upload,
+                            file_path=os.path.join(self.env_save_directory(message), file_name)
+                        )
                 self.queue.task_done()
             else:
                 if retry_count < self.app.max_download_retries:
@@ -1959,15 +1995,7 @@ class TelegramRestrictedMediaDownloader(Bot):
             )
             console.log(result, style='#B1DB74' if self.is_bot_running else '#FF4689')
             if self.is_bot_running:
-                self.uploader = TelegramUploader(
-                    client=self.app.client,
-                    loop=self.loop,
-                    is_premium=self.app.client.me.is_premium,
-                    progress=self.pb,
-                    max_upload_task=self.app.max_upload_task,
-                    max_retry_count=self.app.max_upload_retries,
-                    notify=self.done_notice
-                )
+                self.uploader = TelegramUploader(download_object=self)
                 self.cd = CallbackData()
                 if self.gc.upload_delete:
                     console.log(
@@ -2038,7 +2066,7 @@ class TelegramRestrictedMediaDownloader(Bot):
             record_error: bool = True
             log.error(f'登录超时,请重新打开软件尝试登录,{_t(KeyWord.REASON)}:"{e}"')
         except KeyboardInterrupt:
-            console.log('用户手动终止下载任务。')
+            console.log('⌨️ 用户键盘中断。')
         except OperationalError as e:
             record_error: bool = True
             log.error(

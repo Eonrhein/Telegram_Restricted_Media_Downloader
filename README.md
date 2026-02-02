@@ -14,7 +14,7 @@
     <img src="https://img.shields.io/badge/Python-3.13.2-blue.svg?color=00B16A" alt="Python 3.13.2"/>
   </a>
   <a style="text-decoration:none">
-    <img src="https://img.shields.io/badge/pyrogram@kurigram-2.2.17-blue.svg?color=00B16A" alt="pyrogram@kurigram 2.2.17"/>
+    <img src="https://img.shields.io/badge/pyrogram@kurigram-2.2.18-blue.svg?color=00B16A" alt="pyrogram@kurigram 2.2.18"/>
   </a>
   <a style="text-decoration:none">
     <img src="https://img.shields.io/badge/Platform-Windows & Linux%20-blue?color=00B16A" alt="Platform Windows & Linux"/>
@@ -261,11 +261,13 @@ Telegram交流群:[点击加入](https://t.me/+6KKA-buFaixmNTE1)
 	> **⚠️ 注意：**  
 	> 消息能否转发，在于频道是否开启了`限制保存内容`功能。  
 	> 如果**无法转发**，**机器人**会在**聊天框**提供一个**下载按钮**与**下载后上传按钮(`≥v1.6.7`)**。  
-	> 自版本`≥v1.7.5`起：  
-	> 为确保"受限转发"功能顺利完成，在**下载后上传**过程中，将**忽略配置文件中设置的下载类型限制**，仅遵循`[上传设置]`中的类型过滤规则。  
 	> 自版本`≥v1.6.9`起：  
 	> `/forward`将支持过滤转发类型。  
-	> 可通过`[帮助页面]`->`[设置]`->`[转发设置]`进行修改。
+	> 可通过`[帮助页面]`->`[设置]`->`[转发设置]`进行修改。  
+	> 自版本`≥v1.7.5`起：  
+	> 为确保"受限转发"功能顺利完成，在**下载后上传**过程中，创建下载任务时将**忽略配置文件中设置的下载类型限制**，此时（指"受限转发"情况）`/forward`命令**无法按照**`[转发设置]`过滤类型。  
+	> 自版本`≥v1.8.5`起：  
+	> 为确保"受限转发"功能顺利完成，在**下载后上传**过程中，创建下载任务时将**忽略该链接是否被重复添加的判定**。
 
 - 转发消息语法：
     ```bash
@@ -363,11 +365,13 @@ Telegram交流群:[点击加入](https://t.me/+6KKA-buFaixmNTE1)
 	> 当检测到"受限转发"时，自动采用"下载后上传"的方式(默认**开启**)。  
 	> 当**下载并完成上传**后，可选择**是否删除本地文件**(默认**关闭**)。  
 	> 并且可通过`[帮助页面]`->`[设置]`->`[上传设置]`进行修改。  
-	> 自版本`≥v1.7.5`起：  
-	> 为确保"受限转发"功能顺利完成，在**下载后上传**过程中，将**忽略配置文件中设置的下载类型限制**，仅遵循`[上传设置]`中的类型过滤规则。  
 	> 自版本`≥v1.6.9`起：  
 	> `/listen_forward`将支持过滤转发类型。  
-	> 可通过`[帮助页面]`->`[设置]`->`[转发设置]`进行修改。
+	> 可通过`[帮助页面]`->`[设置]`->`[转发设置]`进行修改。  
+	> 自版本`≥v1.7.5`起：  
+	> 为确保"受限转发"功能顺利完成，在**下载后上传**过程中，创建下载任务时将**忽略配置文件中设置的下载类型限制**。  
+	> 自版本`≥v1.8.5`起：  
+	> 为确保"受限转发"功能顺利完成，在**下载后上传**过程中，创建下载任务时将**忽略该链接是否被重复添加的判定**。
 
 - `/listen_forward`监听转发用于，实时监听该链接的最新消息。
    - 与`/forward`命令一样，消息能否转发，在于频道是否开启了`限制保存内容`功能。
@@ -547,7 +551,7 @@ Telegram交流群:[点击加入](https://t.me/+6KKA-buFaixmNTE1)
 ```yaml
 api_hash: xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx # 申请的api_hash。
 api_id: 'xxxxxxxx' # 申请的api_id。
-# bot_token(选填)如果不填,就不能使用机器人功能。可前往https://t.me/BotFather免费申请。
+# bot_token（选填）如果不填，就不能使用机器人功能。可前往https://t.me/BotFather免费申请。
 bot_token: 123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11
 download_type: # 需要下载的类型。支持的参数:video,photo,document,audio,voice,animation。
 - video # 视频。
@@ -556,9 +560,9 @@ download_type: # 需要下载的类型。支持的参数:video,photo,document,au
 - audio # 音频。
 - voice # 语音。
 - animation # GIF。
-is_shutdown: true # 下载完成后是否自动关机。支持的参数:true,false。
+is_shutdown: true # 下载完成后是否自动关机。支持的参数：true,false。
 links: D:\path\where\your\link\files\save\content.txt # 链接地址写法如下:
-# 新建txt文本,一个链接为一行,将路径填入即可请不要加引号,在软件运行前就准备好。
+# 新建txt文本，一个链接为一行，将路径填入即可请不要加引号，在软件运行前就准备好。
 # D:\path\where\your\link\txt\save\content.txt 一个链接一行。
 max_retries:
   download: 5 # 最大的下载任务的重试次数。
@@ -566,14 +570,16 @@ max_retries:
 max_tasks:
   download: 5 # 最大同时下载的任务数。
   upload: 3 # 最大同时上传的任务数。
-proxy: # 代理部分,如不使用请全部填null注意冒号后面有空格,否则不生效导致报错。
-  enable_proxy: true # 是否开启代理。支持的参数:true,false。
+proxy: # 代理部分，如不使用请全部填null注意冒号后面有空格，否则不生效导致报错。
+  enable_proxy: true # 是否开启代理。支持的参数：true,false。
   hostname: 127.0.0.1 # 代理的ip地址。
-  scheme: socks5 # 代理的类型。支持的参数:http,socks4,socks5。
-  port: 10808 # 代理ip的端口。支持的参数:0~65535。
-  username: null # 代理的账号,没有就填null。
-  password: null # 代理的密码,没有就填null。
-save_directory: F:\directory\media\where\you\save # 下载的媒体保存的目录(支持通配符，不支持网络路径)。
+  scheme: socks5 # 代理的类型。支持的参数：http,socks4,socks5。
+  port: 10808 # 代理ip的端口。支持的参数：0~65535。
+  username: null # 代理的账号，没有就填null。
+  password: null # 代理的密码，没有就填null。
+save_directory: F:\directory\media\where\you\save # 下载的媒体保存的目录（支持通配符，不支持网络路径）。
+session_directory: F:\directory\session\where\you\save # 会话的保存目录（支持通配符，不支持网络路径）。
+temp_directory: F:\directory\temp\where\you\save # 缓存保存的目录（支持通配符，不支持网络路径）。
 ```
 
 ### 自版本`≥v1.7.4`起，`save_directory`将支持通配符。
@@ -889,16 +895,51 @@ _**设置命令行运行参数**需先在**软件目录**打开**终端**，或*
 
 | 短参数 |   长参数    |          解释          |
 | :----: | :---------: | :--------------------: |
-|  `-h`  |  `--help`   |          帮助          |
+|  `-v`  | `--version` |      展示版本信息      |
+|  `-h`  |  `--help`   |        展示帮助        |
 |  `-c`  | `--config`  | 设置用户配置文件的路径 |
 |  `-s`  | `--session` |   设置会话文件的路径   |
 |  `-t`  |  `--temp`   |   设置运行缓存的路径   |
 
 _**长参数与短参数最终结果一致。**_
 
-1. `-h`、`--help`参数用法：
+1. `-v`、`--version`参数用法：
 
-   该参数用于获取使用帮助。
+   该参数用于展示版本信息。
+
+   - 对于生产环境用户（**需要先完成前置步骤**"[_3.0.在生产环境中运行"_](https://github.com/Gentlesprite/Telegram_Restricted_Media_Downloader?tab=readme-ov-file#30%E5%9C%A8%E7%94%9F%E4%BA%A7%E7%8E%AF%E5%A2%83%E4%B8%AD%E8%BF%90%E8%A1%8C)）:
+
+     ```bash
+     TRMD.exe -v
+     ```
+
+     ```bash
+     TRMD.exe --version
+     ```
+
+   - 对于Windows用户:
+
+     ```bash
+     TRMD.exe -v
+     ```
+
+     ```bash
+     TRMD.exe --version
+     ```
+
+   - 对于Linux用户:
+
+     ```bash
+     ./TRMD -v
+     ```
+
+     ```bash
+     ./TRMD --version
+     ```
+
+2. `-h`、`--help`参数用法：
+
+   该参数用于展示帮助。
 
    - 对于生产环境用户（**需要先完成前置步骤**"[_3.0.在生产环境中运行"_](https://github.com/Gentlesprite/Telegram_Restricted_Media_Downloader?tab=readme-ov-file#30%E5%9C%A8%E7%94%9F%E4%BA%A7%E7%8E%AF%E5%A2%83%E4%B8%AD%E8%BF%90%E8%A1%8C)）:
 
@@ -930,7 +971,7 @@ _**长参数与短参数最终结果一致。**_
      ./TRMD --help
      ```
 
-2. `-c`、`--config`参数用法：
+3. `-c`、`--config`参数用法：
 
    | 使用须知                                                     |
    | ------------------------------------------------------------ |
@@ -975,7 +1016,11 @@ _**长参数与短参数最终结果一致。**_
       ./TRMD --config /home/username/files/example.yaml
       ```
 
-3. `-s`、`--session`参数用法：
+4. `-s`、`--session`参数用法：
+
+    > ⚠️ 注意：
+    > 自版本`≥v1.8.5`起：  
+    > `-s`、`--session`参数在设置后将被保存到用户配置文件的`session_directory`参数中，下次使用时无需重复指定，除非需要修改该设置。   
 
    | 使用须知                                                     |
    | ------------------------------------------------------------ |
@@ -1020,7 +1065,11 @@ _**长参数与短参数最终结果一致。**_
      ./TRMD --session /home/username/files/session
      ```
 
-4. `-t`、`--temp`参数用法：
+5. `-t`、`--temp`参数用法：
+
+    > ⚠️ 注意：
+    > 自版本`≥v1.8.5`起：  
+    > `-t`、`--temp`参数在设置后将被保存到用户配置文件的`temp_directory`参数中，下次使用时无需重复指定，除非需要修改该设置。   
 
    | 使用须知                                                     |
    | ------------------------------------------------------------ |
@@ -1064,7 +1113,7 @@ _**长参数与短参数最终结果一致。**_
      ```bash
      ./TRMD --temp /home/username/files/temp
      ```
-</details>
+   </details>
 
 
 # 5.0.通过编译后运行:

@@ -24,7 +24,6 @@ from module.language import _t
 from module.parser import PARSE_ARGS
 from module.path_tool import (
     gen_backup_config,
-    safe_delete,
     safe_scan_directory_file
 )
 from module.enums import (
@@ -140,6 +139,7 @@ class UserConfig(BaseConfig):
         'api_id': None,
         'api_hash': None,
         'bot_token': None,
+        'session_directory': None,
         'proxy': {
             'enable_proxy': None,
             'scheme': None,
@@ -150,6 +150,7 @@ class UserConfig(BaseConfig):
         },
         'links': None,
         'save_directory': None,  # v1.3.0 将配置文件中save_path的参数名修改为save_directory。
+        'temp_directory': None,
         'max_tasks': {
             'download': None,
             'upload': None
@@ -168,8 +169,7 @@ class UserConfig(BaseConfig):
 
     def __init__(self):
         super().__init__()
-        self.config_path: str = PARSE_ARGS.config if os.path.isfile(
-            PARSE_ARGS.config) and PARSE_ARGS.config.endswith('.yaml') else UserConfig.PATH
+        self.config_path: str = PARSE_ARGS.config if PARSE_ARGS.config.endswith('.yaml') else UserConfig.PATH
         self.platform: str = PLATFORM
         self.history_timestamp: dict = {}
         self.input_link: list = []
@@ -177,8 +177,6 @@ class UserConfig(BaseConfig):
         self.difference_timestamp: dict = {}
         self.download_type: list = []
         self.record_dtype: set = set()
-        self.work_directory: str = PARSE_ARGS.session or UserConfig.WORK_DIRECTORY
-        self.temp_directory: str = PARSE_ARGS.temp or UserConfig.TEMP_DIRECTORY
         self.record_flag: bool = False
         self.modified: bool = False
         self.get_last_history_record()
@@ -199,6 +197,9 @@ class UserConfig(BaseConfig):
         self.proxy: dict = self.config.get('proxy', {})
         self.enable_proxy: bool = self.proxy.get('enable_proxy', False)
         self.save_directory: str = self.config.get('save_directory')
+        self.work_directory: str = PARSE_ARGS.session or (
+                self.config.get('session_directory') or UserConfig.WORK_DIRECTORY)
+        self.temp_directory: str = PARSE_ARGS.temp or (self.config.get('temp_directory') or UserConfig.TEMP_DIRECTORY)
 
     def get_last_history_record(self) -> None:
         """获取最近一次保存的历史配置文件。"""
@@ -369,17 +370,18 @@ class UserConfig(BaseConfig):
                 re_config: bool = gsp.get_is_re_config().get('is_re_config')
                 if re_config:
                     self.re_config = re_config
+                    # 缓存原有的session_directory，防止重新配置时丢失。
+                    origin_session_directory = pre_load_config.get('session_directory')
                     pre_load_config: dict = UserConfig.TEMPLATE.copy()
                     self.backup_config(backup_config=pre_load_config, error_config=False, force=True)
                     self.get_last_history_record()  # 更新到上次填写的记录。
-                    self.is_change_account = gsp.get_is_change_account(valid_format='y|n').get(
-                        'is_change_account')
-                    if self.is_change_account:
-                        if safe_delete(file_p_d=os.path.join(self.DIRECTORY_NAME, 'sessions')):
-                            console.log('已删除旧会话文件,稍后需重新登录。')
+                    if not PARSE_ARGS.session:
+                        self.is_change_account = gsp.get_is_change_account(valid_format='y|n').get(
+                            'is_change_account')
+                        if self.is_change_account:
+                            pre_load_config['session_directory'] = gsp.get_session_directory().get('session_directory')
                         else:
-                            console.log(
-                                '删除旧会话文件失败,请手动删除软件目录下的sessions文件夹,再进行下一步操作!')
+                            pre_load_config['session_directory'] = origin_session_directory
             _api_id: Union[str, None] = pre_load_config.get('api_id')
             _api_hash: Union[str, None] = pre_load_config.get('api_hash')
             _bot_token: Union[str, None] = pre_load_config.get('bot_token')
@@ -543,6 +545,21 @@ class UserConfig(BaseConfig):
                 'download': _max_download_retries,
                 'upload': 3}
         )['upload'] = (pre_load_config.get('max_retries') or {}).get('upload', 3) or 3
+        if not PARSE_ARGS.session:
+            _session_directory = pre_load_config.get(
+                'session_directory',
+                UserConfig.WORK_DIRECTORY) or UserConfig.WORK_DIRECTORY
+            pre_load_config['session_directory'] = _session_directory
+        else:
+            pre_load_config['session_directory'] = PARSE_ARGS.session
+
+        if not PARSE_ARGS.temp:
+            _temp_directory = pre_load_config.get(
+                'temp_directory',
+                UserConfig.TEMP_DIRECTORY) or UserConfig.TEMP_DIRECTORY
+            pre_load_config['temp_directory'] = _temp_directory
+        else:
+            pre_load_config['temp_directory'] = PARSE_ARGS.temp
         self.save_config(pre_load_config)  # v1.3.0 修复不保存配置文件时,配置文件仍然保存的问题。
 
     def save_config(self, config: dict) -> None:

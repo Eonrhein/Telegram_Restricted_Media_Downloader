@@ -12,7 +12,7 @@ import mimetypes
 import unicodedata
 
 from io import BytesIO
-from typing import Optional, Union, Callable, List
+from typing import Optional, Union, List
 
 from pyrogram.file_id import (
     FILE_REFERENCE_FLAG,
@@ -92,7 +92,7 @@ def gen_backup_config(old_path: str, absolute_backup_dir: str, error_config: boo
         absolute_backup_dir,
         f'{error_flag}history_{datetime.datetime.now().strftime(time_format)}_config.yaml'
     )
-    os.rename(old_path, new_path)
+    shutil.move(old_path, new_path)
     return new_path
 
 

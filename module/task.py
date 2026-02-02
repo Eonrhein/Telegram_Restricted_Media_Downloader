@@ -143,7 +143,10 @@ class UploadTask:
             file_part: Union[list],
             status: UploadStatus,
             error_msg: Union[str, None] = None,
-            with_delete: bool = False
+            with_delete: bool = False,
+            media_group: Optional[asyncio.Task] = None,
+            message_id: Optional[int] = None,
+            send_as_media_group: bool = False
     ):
         UploadTask.TASKS.add(self)
         UploadTask.TASK_COUNTER += 1
@@ -157,6 +160,10 @@ class UploadTask:
         self.error_msg: Union[str, None] = error_msg
         self.with_delete: bool = with_delete
         self.file_total_parts = int(math.ceil(file_size / UploadTask.PART_SIZE))
+        self.__media_group: asyncio.Task = media_group
+        self.message_id: Optional[int] = message_id
+        self.send_as_media_group: bool = send_as_media_group
+        self.prompt: str = ''
 
     def __setattr__(self, name, value):
         if name.startswith('_'):
@@ -179,8 +186,10 @@ class UploadTask:
                             )
                         elif value == UploadStatus.SUCCESS:
                             more = ''
+                            if self.send_as_media_group:
+                                more += f'(等待所有媒体上传完成以媒体组发送)'
                             if self.with_delete:
-                                more = '(本地文件已删除)'
+                                more += '(本地文件已删除)'
                             console.log(
                                 f'{_t(KeyWord.UPLOAD_TASK)}'
                                 f'{_t(KeyWord.CHANNEL)}:"{self.chat_id}",'
@@ -188,7 +197,9 @@ class UploadTask:
                                 f'{_t(KeyWord.SIZE)}:{MetaData.suitable_units_display(self.file_size)},'
                                 f'{_t(KeyWord.STATUS)}:{_t(UploadStatus.SUCCESS)}{more}。',
                             )
-                            self.notice(f'"{self.file_path}" ⬆️ "{self.chat_id}"上传完成{more}。')
+                            self.notice(f'"{self.file_path}" ⬆️ "{self.chat_id}"上传完成。\n{more}')
+                        elif value == UploadStatus.SENT:
+                            pass
                         elif value == UploadStatus.FAILURE:
                             log.error(
                                 f'{_t(KeyWord.UPLOAD_TASK)}'
@@ -208,9 +219,21 @@ class UploadTask:
                             )
                         os.makedirs(os.path.dirname(self.upload_manager_path), exist_ok=True)
                         self.load_json()
+                    elif name == 'prompt':
+                        self.notice(self.prompt)
 
             else:
                 super().__setattr__(name, value)
+
+    @property
+    def is_media_group(self) -> bool:
+        if self.__media_group:
+            return True
+        return False
+
+    async def get_media_group(self) -> pyrogram.types.List:
+        if self.is_media_group:
+            return await self.__media_group
 
     def notice(self, message: str):
         if isinstance(self.NOTIFY, Callable):
@@ -265,6 +288,34 @@ class UploadTask:
         if file_part not in self.file_part and file_part < self.file_total_parts:
             self.file_part.append(file_part)
             self.save_json()
+
+    @staticmethod
+    def has_pending_media_group_tasks() -> bool:
+        """检查是否还有IDLE或UPLOADING状态且属于媒体组的任务。"""
+        for task in UploadTask.TASKS:
+            if task.status in (UploadStatus.IDLE, UploadStatus.UPLOADING) and task.is_media_group:
+                return True
+        return False
+
+    @staticmethod
+    def get_media_group_task_count(message_ids: set) -> int:
+        """获取指定media_group_id和message_ids列表中已创建的UploadTask数量。
+
+        Args:
+            message_ids: 需要检查的message_id集合。
+
+        Returns:
+            int: 已创建的UploadTask数量(排除已发送的任务)。
+        """
+        if not message_ids:
+            return 0
+
+        count = 0
+        for task in UploadTask.TASKS:
+            if task.message_id in message_ids and task.status != UploadStatus.SENT:
+                count += 1
+
+        return count
 
     def get_missing_parts(self) -> list:
         """获取缺失的分片索引。"""
