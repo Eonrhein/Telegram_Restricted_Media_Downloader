@@ -239,26 +239,26 @@ async def get_chat_with_notify(
         return None
 
 
-async def is_valid_link(
+async def get_valid_chat_id(
         link: Union[int, str],
         user_client: pyrogram.Client,
         bot_client: Union[pyrogram.Client] = None,
         bot_message: Union[pyrogram.types.Message] = None,
         error_msg: Union[str] = None
-) -> bool:
+) -> Union[int, str, None]:
     m = await parse_link(
         client=user_client,
         link=link
     )
-    if await get_chat_with_notify(
+    if not await get_chat_with_notify(
             user_client=user_client,
             chat_id=m.get('chat_id'),
             bot_client=bot_client,
             bot_message=bot_message,
             error_msg=error_msg if error_msg else ''
     ):
-        return True
-    return False
+        return None
+    return m.get('chat_id')
 
 
 def is_allow_upload(file_size: int, is_premium: bool) -> bool:
@@ -300,6 +300,11 @@ async def format_chat_link(
             result = '/'.join(parts[:5])  # https://t.me/customer/5/1 -> https://t.me/customer/5
 
     return result if result else link
+
+
+async def get_my_id(client: pyrogram.Client) -> int:
+    me = await client.get_me()
+    return me.id
 
 
 class Issues:

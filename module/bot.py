@@ -43,7 +43,7 @@ from module.util import (
     safe_index,
     safe_message,
     is_allow_upload,
-    is_valid_link
+    get_valid_chat_id
 )
 from module.enums import (
     CalenderKeyboard,
@@ -93,7 +93,7 @@ class Bot:
         await client.send_message(
             chat_id=message.from_user.id,
             reply_parameters=ReplyParameters(message_id=message.id),
-            text='❓❓❓未知命令❓❓❓\n请查看帮助后重试。',
+            text='⚠️⚠️⚠️未知命令⚠️⚠️⚠️\n请查看帮助后重试。',
             link_preview_options=LINK_PREVIEW_OPTIONS
         )
 
@@ -139,7 +139,7 @@ class Bot:
             await client.send_message(
                 chat_id=message.from_user.id,
                 reply_parameters=ReplyParameters(message_id=message.id),
-                text='❓❓❓请提供下载链接❓❓❓语法:\n`/download https://t.me/x/x`',
+                text='⚠️⚠️⚠️请提供下载链接⚠️⚠️⚠️语法:\n`/download https://t.me/x/x`',
                 link_preview_options=LINK_PREVIEW_OPTIONS
             )
         elif text.startswith('https://t.me/'):
@@ -166,7 +166,7 @@ class Bot:
             await client.send_message(
                 chat_id=message.from_user.id,
                 reply_parameters=ReplyParameters(message_id=message.id),
-                text='⁉️⁉️⁉️链接错误⁉️⁉️⁉️\n请查看帮助后重试。',
+                text='❌❌❌链接错误❌❌❌\n请查看帮助后重试。',
                 link_preview_options=LINK_PREVIEW_OPTIONS
             )
         else:
@@ -228,16 +228,17 @@ class Bot:
             await client.send_message(
                 chat_id=message.from_user.id,
                 reply_parameters=ReplyParameters(message_id=message.id),
-                text='❓❓❓请提供下载链接❓❓❓语法:\n`/download_chat https://t.me/x/x`',
+                text='⚠️⚠️⚠️请提供下载链接⚠️⚠️⚠️语法:\n`/download_chat https://t.me/x/x`',
                 link_preview_options=LINK_PREVIEW_OPTIONS
             )
+            return None
         command = text.split()
         if len(command) != 2:
             await self.help(client, message)
             await client.send_message(
                 chat_id=message.from_user.id,
                 reply_parameters=ReplyParameters(message_id=message.id),
-                text='⁉️⁉️⁉️命令语法错误⁉️⁉️⁉️\n请查看帮助后重试。',
+                text='❌❌❌命令语法错误❌❌❌\n请查看帮助后重试。',
                 link_preview_options=LINK_PREVIEW_OPTIONS
             )
             return None
@@ -501,14 +502,18 @@ class Bot:
             message: pyrogram.types.Message,
             delete: bool = False,
             save_directory: str = None,
-            recursion: bool = False
+            recursion: bool = False,
+            valid_link_cache: dict = None
     ):
+        if not recursion:
+            valid_link_cache = {}
+
         text: str = message.text
         if text == '/upload' or text == '/upload_r':
             await client.send_message(
                 chat_id=message.from_user.id,
                 reply_parameters=ReplyParameters(message_id=message.id),
-                text='❓❓❓请提供参数❓❓❓语法:\n`/upload 本地文件 目标频道`或`/upload_r 本地文件夹 目标频道`',
+                text='⚠️⚠️⚠️请提供参数⚠️⚠️⚠️语法:\n`/upload 本地文件 目标频道`或`/upload_r 本地文件夹 目标频道`',
                 link_preview_options=LINK_PREVIEW_OPTIONS
             )
             return None
@@ -528,13 +533,15 @@ class Bot:
             file_path = parts[0]  # 文件名部分（可能包含空格）。
             target_link = parts[1]  # URL部分。
             if not recursion:
-                if not await is_valid_link(
+                if target_link not in valid_link_cache:
+                    valid_link_cache[target_link] = await get_valid_chat_id(
                         link=target_link,
                         user_client=self.user,
                         bot_client=self.bot,
                         bot_message=self.last_message,
                         error_msg=f'⬇️⬇️⬇️目标频道不存在⬇️⬇️⬇️\n{target_link}'
-                ):
+                    )
+                if not valid_link_cache[target_link]:
                     return None
             if os.path.isdir(file_path):
                 upload_folder = []
@@ -552,18 +559,25 @@ class Bot:
                             message=new_message,
                             delete=delete,
                             save_directory=save_directory,
-                            recursion=True
+                            recursion=True,
+                            valid_link_cache=valid_link_cache
                         )
                     )
-                sem = asyncio.Semaphore(self.application.max_upload_task)
-
-                async def limited(coro):
-                    async with sem:
-                        return await coro
-
-                limited_tasks = [limited(coro) for coro in upload_folder]
-                for future in asyncio.as_completed(limited_tasks):
-                    await future
+                if upload_folder:
+                    await client.send_message(
+                        chat_id=message.from_user.id,
+                        reply_parameters=ReplyParameters(message_id=message.id),
+                        text=f'📤📤📤上传任务已创建,请耐心等待📤📤📤\n`{file_path}`',
+                        link_preview_options=LINK_PREVIEW_OPTIONS
+                    )
+                    await asyncio.gather(*upload_folder)
+                else:
+                    await client.send_message(
+                        chat_id=message.from_user.id,
+                        reply_parameters=ReplyParameters(message_id=message.id),
+                        text=f'⚠️⚠️⚠️文件夹为空⚠️⚠️⚠️\n`{file_path}`',
+                        link_preview_options=LINK_PREVIEW_OPTIONS
+                    )
                 return None
             if not os.path.isfile(file_path):
                 log.error(f'上传出错,{_t(KeyWord.REASON)}:"{file_path}"不存在。')
@@ -593,18 +607,25 @@ class Bot:
                          f'(普通用户2000MiB,会员用户4000MiB)',
                     link_preview_options=LINK_PREVIEW_OPTIONS
                 )
-
+            if not recursion:
+                await client.send_message(
+                    chat_id=message.from_user.id,
+                    reply_parameters=ReplyParameters(message_id=message.id),
+                    text=f'📤📤📤上传任务已创建,请耐心等待📤📤📤\n`{file_path}`',
+                    link_preview_options=LINK_PREVIEW_OPTIONS
+                )
             log.info(f'上传文件:"{file_path}",上传频道:"{target_link}"。')
             if target_link.startswith('https://t.me/') or target_link in ('me', 'self'):  # 验证目标链接格式。
                 return {
                     'target_link': target_link,
+                    'valid_link_cache': valid_link_cache,
                     'upload_task': UploadTask(
                         chat_id=None,
                         file_path=file_path,
                         file_id=self.user.rnd_id(),
                         file_size=os.path.getsize(file_path),
                         file_part=[],
-                        status=UploadStatus.IDLE
+                        status=UploadStatus.PENDING
                     )
                 }
         if not recursion:

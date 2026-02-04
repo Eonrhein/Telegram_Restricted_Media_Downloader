@@ -79,6 +79,7 @@ from module.uploader import TelegramUploader
 from module.util import (
     parse_link,
     format_chat_link,
+    get_my_id,
     get_message_by_link,
     get_chat_with_notify,
     safe_message,
@@ -101,6 +102,7 @@ class TelegramRestrictedMediaDownloader(Bot):
         self.pb: ProgressBar = ProgressBar()
         self.uploader: Union[TelegramUploader, None] = None
         self.cd: Union[CallbackData, None] = None
+        self.my_id: int = 0
 
     def env_save_directory(
             self,
@@ -181,26 +183,27 @@ class TelegramRestrictedMediaDownloader(Bot):
             message: pyrogram.types.Message,
             delete: bool = False,
             save_directory: str = None,
-            recursion: bool = False
+            recursion: bool = False,
+            valid_link_cache: dict = None
     ):
-        link_meta: Union[dict, None] = await super().get_upload_link_from_bot(client, message)
+        link_meta: Union[dict, None] = await super().get_upload_link_from_bot(
+            client=client,
+            message=message,
+            delete=delete,
+            save_directory=save_directory,
+            recursion=recursion,
+            valid_link_cache=valid_link_cache
+        )
         if link_meta is None:
             return None
         target_link: str = link_meta.get('target_link')
+        valid_link_cache: dict = link_meta.get('valid_link_cache')
         upload_task = link_meta.get('upload_task')
         upload_task.with_delete = self.gc.upload_delete
-        try:
-            await self.uploader.create_upload_task(
-                link=target_link,
-                upload_task=upload_task
-            )
-        except ValueError:
-            if not recursion:
-                await client.send_message(
-                    chat_id=message.from_user.id,
-                    reply_parameters=ReplyParameters(message_id=message.id),
-                    text=f'⬇️⬇️⬇️目标频道不存在⬇️⬇️⬇️\n{target_link}'
-                )
+        await self.uploader.create_upload_task(
+            link=valid_link_cache.get(target_link, None) or target_link if valid_link_cache else target_link,
+            upload_task=upload_task,
+        )
 
     @staticmethod
     async def __send_pay_qr(
@@ -670,7 +673,9 @@ class TelegramRestrictedMediaDownloader(Bot):
                 BotCallbackText.DOWNLOAD_CHAT_ID = 'download_chat_id'
                 if callback_data == chat_id:
                     await callback_query.message.edit_text(
-                        text=f'下载频道:`{chat_id}`\n{callback_query.message.text}',
+                        text=f'下载频道:`{chat_id}`\n{callback_query.message.text}\n'
+                             f'⏳需要检索该频道所有匹配的消息,请耐心等待。\n'
+                             f'💡请忽略终端中的请求频繁提示`messages.GetHistory`,因为这并不影响下载。',
                         reply_markup=kb.single_button(
                             text=BotButton.TASK_ASSIGN,
                             callback_data=BotCallbackText.NULL
@@ -964,8 +969,8 @@ class TelegramRestrictedMediaDownloader(Bot):
             )
             if not all([origin_chat, target_chat]):
                 return None
-            me = await client.get_me()
-            if target_chat.id == me.id:
+            my_id = await get_my_id(client)
+            if target_chat.id == my_id:
                 await client.send_message(
                     chat_id=message.from_user.id,
                     text='⚠️⚠️⚠️无法转发到此机器人⚠️⚠️⚠️',
@@ -1019,7 +1024,7 @@ class TelegramRestrictedMediaDownloader(Bot):
                         return None
                     await client.send_message(
                         chat_id=message.from_user.id,
-                        text=f'`{origin_link}`\n{channel}存在内容保护限制(已自动使用下载后上传)。\n⚠️通过`/forward`命令发送的下载后上传的消息,无法按照`[转发设置]`过滤类型',
+                        text=f'`{origin_link}`\n{channel}存在内容保护限制(已自动使用下载后上传)。\n⚠️通过`/forward`命令发送的下载后上传的消息,无法按照`[转发设置]`过滤类型。',
                         parse_mode=ParseMode.MARKDOWN,
                         reply_parameters=ReplyParameters(message_id=message.id)
                     )
@@ -1434,13 +1439,14 @@ class TelegramRestrictedMediaDownloader(Bot):
         if downloaded == 0:
             mode = 'wb'
         else:
-            mode = 'ab'
+            mode = 'r+b'
             console.log(
                 f'{_t(KeyWord.DOWNLOAD_TASK)}'
                 f'{_t(KeyWord.RESUME)}:"{file_name}",'
                 f'{_t(KeyWord.ERROR_SIZE)}:{MetaData.suitable_units_display(downloaded)}。')
         with open(file=temp_path, mode=mode) as f:
             skip_chunks: int = downloaded // chunk_size  # 计算要跳过的块数。
+            f.seek(downloaded)
             async for chunk in self.app.client.stream_media(message=message, offset=skip_chunks):
                 f.write(chunk)
                 downloaded += len(chunk)
@@ -1966,10 +1972,10 @@ class TelegramRestrictedMediaDownloader(Bot):
         if links:
             return links
         elif not self.app.bot_token:
-            console.log('没有找到有效链接,程序已退出。', style='#FF4689')
+            console.log('🔗 没有找到有效链接,程序已退出。', style='#FF4689')
             sys.exit(0)
         else:
-            console.log('没有找到有效链接。', style='#FF4689')
+            console.log('🔗 没有找到有效链接。', style='#FF4689')
             return None
 
     def __retry_call(self, notice, _future):
@@ -1978,6 +1984,7 @@ class TelegramRestrictedMediaDownloader(Bot):
 
     async def __download_media_from_links(self) -> None:
         await self.app.client.start(use_qr=False)
+        self.my_id = await get_my_id(self.app.client)
         self.pb.progress.start()  # v1.1.8修复登录输入手机号不显示文本问题。
         if self.app.bot_token is not None:
             result = await self.start_bot(

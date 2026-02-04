@@ -6,6 +6,7 @@
 import os
 import re
 import struct
+import hashlib
 import shutil
 import datetime
 import mimetypes
@@ -23,7 +24,9 @@ from pyrogram.file_id import (
     rle_decode,
 )
 
-from module.enums import Extension
+from module import log
+from module.enums import Extension, KeyWord
+from module.language import _t
 
 _mimetypes = mimetypes.MimeTypes()
 
@@ -107,9 +110,11 @@ def safe_delete(file_p_d: str) -> bool:
             return True
     except FileNotFoundError:
         return True
-    except PermissionError:
+    except PermissionError as e:
+        log.error(f'权限不足,无法删除"{file_p_d}",{_t(KeyWord.REASON)}:"{e}"')
         return False
-    except Exception as _:
+    except Exception as e:
+        log.error(f'无法删除"{file_p_d}",{_t(KeyWord.REASON)}:"{e}"', exc_info=True)
         return False
 
 
@@ -301,3 +306,20 @@ def is_compressed_file(filename: Union[str, None]) -> bool:
             return True
 
     return False
+
+
+def calc_sha256(file_path, chunk_size=8192) -> str:
+    sha256_hash = hashlib.sha256()
+
+    try:
+        with open(file_path, 'rb') as f:
+            while True:
+                chunk = f.read(chunk_size)
+                if not chunk:
+                    break
+                sha256_hash.update(chunk)
+        return sha256_hash.hexdigest()
+    except PermissionError as e:
+        log.error(f'权限不足,无法计算文件SHA256,{_t(KeyWord.REASON)}:"{e}"')
+    except Exception as e:
+        log.exception(f'计算文件SHA256失败,{_t(KeyWord.REASON)}:"{e}"')

@@ -10,6 +10,7 @@ import inspect
 
 from functools import partial
 from typing import (
+    List,
     Dict,
     Union,
     Callable
@@ -19,7 +20,9 @@ import pyrogram
 from pyrogram import raw, utils
 from pyrogram.errors.exceptions import (
     FilePartMissing,
-    ChatAdminRequired
+    ChatAdminRequired,
+    PhotoInvalidDimensions,
+    PhotoSaveFileInvalid
 )
 from pyrogram.errors.exceptions.bad_request_400 import ChannelPrivate as ChannelPrivate_400
 from pyrogram.errors.exceptions.not_acceptable_406 import ChannelPrivate as ChannelPrivate_406
@@ -37,8 +40,7 @@ from module.stdio import (
 )
 from module.path_tool import (
     split_path,
-    safe_delete,
-    truncate_filename
+    safe_delete
 )
 from module.enums import (
     KeyWord,
@@ -68,7 +70,9 @@ class TelegramUploader:
         self.max_upload_retries: int = self.app.max_upload_retries
         self.is_bot_running = download_object.is_bot_running
         self.upload_queue: asyncio.Queue = asyncio.Queue()
+        self.valid_link_cache = {}
         UploadTask.NOTIFY = download_object.done_notice
+        UploadTask.DIRECTORY_NAME = os.path.join(UploadTask.DIRECTORY_NAME, str(download_object.my_id))
         asyncio.create_task(self.send_media_worker())
 
     async def resume_upload(
@@ -156,24 +160,41 @@ class TelegramUploader:
         file_name = split_path(file_path).get('file_name', 'file')
 
         if file_path.lower().endswith(('.jpg', '.jpeg', '.png', '.gif', '.webp')):
-            media = raw.types.InputMediaUploadedPhoto(
-                file=file,
-                spoiler=False
-            )
-            media = await self.client.invoke(
-                raw.functions.messages.UploadMedia(
-                    peer=await self.client.resolve_peer(chat_id),
-                    media=media
+            try:
+                media = raw.types.InputMediaUploadedPhoto(
+                    file=file,
+                    spoiler=False
                 )
-            )
-            media = raw.types.InputMediaPhoto(
-                id=raw.types.InputPhoto(
-                    id=media.photo.id,
-                    access_hash=media.photo.access_hash,
-                    file_reference=media.photo.file_reference
-                ),
-                spoiler=False
-            )
+                media = await self.client.invoke(
+                    raw.functions.messages.UploadMedia(
+                        peer=await self.client.resolve_peer(chat_id),
+                        media=media
+                    )
+                )
+                media = raw.types.InputMediaPhoto(
+                    id=raw.types.InputPhoto(
+                        id=media.photo.id,
+                        access_hash=media.photo.access_hash,
+                        file_reference=media.photo.file_reference
+                    ),
+                    spoiler=False
+                )
+            except (PhotoInvalidDimensions, PhotoSaveFileInvalid) as e:
+                obj: str = ''
+                if isinstance(e, PhotoInvalidDimensions):
+                    obj: str = '尺寸'
+                elif isinstance(e, PhotoSaveFileInvalid):
+                    obj: str = '大小'
+                p = f'[图片]:"{file_path}"因来自Telegram的{obj}限制,回退为文档格式进行上传,{_t(KeyWord.REASON)}:"{e}"'
+                log.info(p)
+                console.log(p, style='#FF4689')
+                attributes = [raw.types.DocumentAttributeFilename(file_name=file_name)]
+                media = await self.get_input_media_document(
+                    chat_id=chat_id,
+                    file=file,
+                    attributes=attributes,
+                    mime_type=mime_type
+                )
         else:
             attributes = [raw.types.DocumentAttributeFilename(file_name=file_name)]
             if file_path.lower().endswith(('.mp4', '.mov', '.avi', '.mkv')):
@@ -187,28 +208,14 @@ class TelegramUploader:
                     ))
                     log.info(f'视频"{file_path}"将以原本格式进行上传。')
                 else:
-                    p = f'获取视频元数据失败,视频"{file_path}"将以文档格式进行上传。'
-                    console.log(p)
+                    p = f'[视频]:"{file_path}"获取视频元数据失败,回退为文档格式进行上传。'
                     log.info(p)
-            media = raw.types.InputMediaUploadedDocument(
-                mime_type=mime_type,
+                    console.log(p, style='#FF4689')
+            media = await self.get_input_media_document(
+                chat_id=chat_id,
                 file=file,
                 attributes=attributes,
-                force_file=False,  # 不要强制作为文件发送。
-                thumb=None  # 缩略图。
-            )
-            media = await self.client.invoke(
-                raw.functions.messages.UploadMedia(
-                    peer=await self.client.resolve_peer(chat_id),
-                    media=media
-                )
-            )
-            media = raw.types.InputMediaDocument(
-                id=raw.types.InputDocument(
-                    id=media.document.id,
-                    access_hash=media.document.access_hash,
-                    file_reference=media.document.file_reference
-                )
+                mime_type=mime_type
             )
         self.upload_queue.put_nowait((media, upload_task))
 
@@ -345,6 +352,7 @@ class TelegramUploader:
                                 for task in UploadTask.TASKS:
                                     if task.message_id in message_ids and task.status == UploadStatus.SUCCESS:
                                         task.status = UploadStatus.SENT
+                                self.valid_link_cache = {k: v for k, v in self.valid_link_cache.items() if v != chat_id}
                             except Exception as send_error:
                                 log.error(f'[Upload Worker]发送媒体组失败,{_t(KeyWord.REASON)}:"{send_error}"',
                                           exc_info=True)
@@ -398,6 +406,7 @@ class TelegramUploader:
                 )
             )
             upload_task.status = UploadStatus.SENT
+            self.valid_link_cache = {k: v for k, v in self.valid_link_cache.items() if v != chat_id}
             log.info(f'[Upload Worker]单条消息发送完成,{_t(KeyWord.CHANNEL)}:"{chat_id}"')
         except Exception as e:
             log.error(f'"[Upload Worker]发送单条消息失败,{_t(KeyWord.REASON)}:"{e}"', exc_info=True)
@@ -417,23 +426,61 @@ class TelegramUploader:
         except Exception as e:
             log.error(f'获取视频元数据失败,{_t(KeyWord.REASON)}:"{e}"')
 
+    async def get_input_media_document(
+            self,
+            chat_id: Union[int, str],
+            file: Union[raw.types.InputFile, raw.types.InputFileBig],
+            attributes: List[raw.types.DocumentAttributeFilename],
+            mime_type: str,
+    ) -> raw.types.InputMediaDocument:
+        media = raw.types.InputMediaUploadedDocument(
+            mime_type=mime_type,
+            file=file,
+            attributes=attributes,
+            force_file=False,
+            thumb=None
+        )
+        media = await self.client.invoke(
+            raw.functions.messages.UploadMedia(
+                peer=await self.client.resolve_peer(chat_id),
+                media=media
+            )
+        )
+        return raw.types.InputMediaDocument(
+            id=raw.types.InputDocument(
+                id=media.document.id,
+                access_hash=media.document.access_hash,
+                file_reference=media.document.file_reference
+            )
+        )
+
     async def create_upload_task(
             self,
-            link: str,
+            link: Union[str, int],
             upload_task: UploadTask
     ) -> None:
+        if isinstance(link, str):
+            if link.startswith('https://t.me/'):
+                if link in self.valid_link_cache:
+                    chat_id: Union[int, str] = self.valid_link_cache[link]
+                else:
+                    target_meta: Union[dict, None] = await parse_link(
+                        client=self.client,
+                        link=link
+                    )
+                    chat_id: Union[int, str] = target_meta.get('chat_id')
+                    target_chat = await get_chat_with_notify(
+                        user_client=self.client,
+                        chat_id=chat_id
+                    )
+                    if not target_chat:
+                        raise ValueError
+                    self.valid_link_cache[link] = chat_id
+            else:
+                chat_id: Union[int, str] = link
+        else:
+            chat_id: Union[int, str] = link
         file_path = upload_task.file_path
-        target_meta: Union[dict, None] = await parse_link(
-            client=self.client,
-            link=link
-        )
-        chat_id: Union[int, str] = target_meta.get('chat_id')
-        target_chat = await get_chat_with_notify(
-            user_client=self.client,
-            chat_id=chat_id
-        )
-        if not target_chat:
-            raise ValueError
         file_size: int = os.path.getsize(file_path)
         upload_task.chat_id = chat_id
         if not is_allow_upload(file_size, self.is_premium):
@@ -446,12 +493,8 @@ class TelegramUploader:
             return None
 
         retry = 0
-        file_part_retry = 0
         while retry < self.max_upload_retries:
             try:
-                if retry != 0 or upload_task.file_part:
-                    console.log(f'{_t(KeyWord.RESUME)}:"{file_path}"。')
-                upload_task.status = UploadStatus.UPLOADING
                 await self.__add_task(
                     upload_task=upload_task
                 )
@@ -465,10 +508,6 @@ class TelegramUploader:
                 fp = upload_task.file_part
                 if missing_part in fp:
                     fp.remove(missing_part)
-                file_part_retry += 1
-                if file_part_retry >= upload_task.file_total_parts:
-                    upload_task.error_msg = f'缺失分片重传次数大于分片总数{upload_task.file_total_parts},可能存在网络问题'
-                    upload_task.status = UploadStatus.FAILURE
                 continue
             except (ChatAdminRequired, ChannelPrivate_400, ChannelPrivate_406) as e:
                 upload_task.error_msg = str(e)
@@ -495,6 +534,8 @@ class TelegramUploader:
         while self.current_task_num >= self.max_upload_task:  # v1.0.7 增加下载任务数限制。
             await self.event.wait()
             self.event.clear()
+        upload_task.status = UploadStatus.UPLOADING
+        console.log(f'{_t(KeyWord.UPLOAD_TASK)}{_t(KeyWord.RESUME)}:"{file_path}"。') if upload_task.file_part else None
         format_file_size: str = MetaData.suitable_units_display(file_size)
         task_id = self.pb.progress.add_task(
             description='📤',
@@ -543,24 +584,16 @@ class TelegramUploader:
             self.event.set()
             log.info(e)
             return
-        chat_id: Union[str, int] = upload_task.chat_id
-        file_size: int = upload_task.file_size
         file_path: str = upload_task.file_path
-        with_delete: bool = upload_task.with_delete
         self.current_task_num -= 1
         self.pb.progress.remove_task(task_id=task_id)
-        if not safe_delete(
-                os.path.join(
-                    UploadTask.DIRECTORY_NAME,
-                    str(chat_id),
-                    f'{truncate_filename(f"{file_size} - {os.path.basename(file_path)}")}.json'
-                )
-        ):
-            log.warning(f'无法删除"{os.path.basename(file_path)}"的上传缓存管理文件。')
-        else:
-            log.info(f'成功删除"{os.path.basename(file_path)}"的上传缓存管理文件。')
+        if upload_task.file_size < 10 * 1024 * 1024:
+            if not safe_delete(os.path.join(UploadTask.DIRECTORY_NAME, f'{upload_task.sha256}.json')):
+                log.warning(f'无法删除"{os.path.basename(file_path)}"的上传缓存管理文件。')
+            else:
+                log.info(f'成功删除"{os.path.basename(file_path)}"的上传缓存管理文件。')
         self.event.set()
-        safe_delete(file_path) if with_delete else None
+        safe_delete(file_path) if upload_task.with_delete else None
         upload_task.status = UploadStatus.SUCCESS
         MetaData.print_current_task_num(
             prompt=_t(KeyWord.CURRENT_UPLOAD_TASK),
@@ -578,7 +611,7 @@ class TelegramUploader:
                         file_id=self.client.rnd_id(),
                         file_size=os.path.getsize(file_path),
                         file_part=[],
-                        status=UploadStatus.IDLE,
+                        status=UploadStatus.PENDING,
                         with_delete=with_upload.get('with_delete'),
                         media_group=with_upload.get('media_group'),
                         message_id=with_upload.get('message_id'),

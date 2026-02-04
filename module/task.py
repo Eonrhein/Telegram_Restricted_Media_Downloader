@@ -20,7 +20,7 @@ from module.stdio import MetaData
 from module.parser import PARSE_ARGS
 from module.path_tool import (
     safe_delete,
-    truncate_filename
+    calc_sha256,
 )
 from module.enums import (
     DownloadStatus,
@@ -163,6 +163,7 @@ class UploadTask:
         self.__media_group: asyncio.Task = media_group
         self.message_id: Optional[int] = message_id
         self.send_as_media_group: bool = send_as_media_group
+        self.sha256: str = calc_sha256(file_path=self.file_path)
         self.prompt: str = ''
 
     def __setattr__(self, name, value):
@@ -174,7 +175,7 @@ class UploadTask:
                 if old_value != value:
                     super().__setattr__(name, value)
                     if name == 'status':
-                        if value == UploadStatus.IDLE:
+                        if value == UploadStatus.PENDING:
                             pass
                         elif value == UploadStatus.UPLOADING:
                             console.log(
@@ -214,8 +215,7 @@ class UploadTask:
                         if value:
                             self.upload_manager_path: str = os.path.join(
                                 UploadTask.DIRECTORY_NAME,
-                                str(self.chat_id),
-                                f'{truncate_filename(f"{self.file_size} - {self.file_name}")}.json'
+                                f'{self.sha256}.json'
                             )
                         os.makedirs(os.path.dirname(self.upload_manager_path), exist_ok=True)
                         self.load_json()
@@ -255,7 +255,6 @@ class UploadTask:
         with open(file=self.upload_manager_path, mode='w', encoding='UTF-8') as f:
             json.dump(
                 obj={
-                    'file_path': self.file_path,
                     'file_id': self.file_id,
                     'file_size': self.file_size,
                     'file_part': self.file_part,
@@ -278,7 +277,6 @@ class UploadTask:
                 log.info(f'UploadManager的json内容可能为空,即将重新生成,{_t(KeyWord.REASON)}:"{e}"')
                 safe_delete(self.upload_manager_path)
                 self.save_json()
-        self.file_path = _json.get('file_path', self.file_path)
         self.file_id = _json.get('file_id', self.file_id)
         self.file_size = _json.get('file_size', self.file_size)
         self.file_part = _json.get('file_part', self.file_part)
@@ -293,7 +291,7 @@ class UploadTask:
     def has_pending_media_group_tasks() -> bool:
         """检查是否还有IDLE或UPLOADING状态且属于媒体组的任务。"""
         for task in UploadTask.TASKS:
-            if task.status in (UploadStatus.IDLE, UploadStatus.UPLOADING) and task.is_media_group:
+            if task.status in (UploadStatus.PENDING, UploadStatus.UPLOADING) and task.is_media_group:
                 return True
         return False
 
