@@ -369,7 +369,7 @@ class Bot:
         text = (
             f'`\n💎 {SOFTWARE_FULL_NAME} v{__version__} 💎\n'
             f'©️ {__copyright__.replace(" <https://github.com/Gentlesprite>", ".")}\n'
-            f'📖 Licensed under the terms of the {__license__}.`\n'
+            f'📖 Licensed under the terms of the {__license__}.`\n\n'
             f'🎮️ 可用命令:\n'
             f'🛎️ {BotCommandText.with_description(BotCommandText.HELP)}\n'
             f'📁 {BotCommandText.with_description(BotCommandText.DOWNLOAD)}\n'
@@ -381,7 +381,9 @@ class Bot:
             f'🔍 {BotCommandText.with_description(BotCommandText.LISTEN_INFO)}\n'
             f'📤 {BotCommandText.with_description(BotCommandText.UPLOAD)}\n'
             f'🌳 {BotCommandText.with_description(BotCommandText.UPLOAD_R)}\n'
-            f'💬 {BotCommandText.with_description(BotCommandText.DOWNLOAD_CHAT)}\n'
+            f'💬 {BotCommandText.with_description(BotCommandText.DOWNLOAD_CHAT)}\n\n'
+            f'✨ 其他功能:\n'
+            f'📨 转发`视频`、`图片`、`音频`、`语音`、`GIF`、`文档`类型的消息给我,即可自动下载。\n'
         )
         if not all([client, message]):
             return {
@@ -839,6 +841,13 @@ class Bot:
             if self.listen_forward_chat:
                 await __listen_info(self.listen_forward_chat, '📲以下链接为已创建的`监听转发`频道:\n')
 
+    async def handle_forwarded_media(
+            self,
+            user_client: pyrogram.Client,
+            user_message: pyrogram.types.Message
+    ):
+        pass
+
     async def done_notice(
             self,
             text
@@ -866,6 +875,9 @@ class Bot:
             self.root.append(root.id)
             await bot_client_obj.start()
             await self.bot.set_bot_commands(self.COMMANDS)
+            bot = await self.bot.get_me()
+            bot_username = getattr(bot, 'username', None)
+
             self.bot.add_handler(
                 MessageHandler(
                     self.start,
@@ -939,6 +951,20 @@ class Bot:
                     filters=pyrogram.filters.regex(r'^https://t.me.*') & pyrogram.filters.user(self.root)
                 )
             )
+            self.user.add_handler(
+                MessageHandler(
+                    self.handle_forwarded_media,
+                    filters=pyrogram.filters.user(self.root) & pyrogram.filters.forwarded & pyrogram.filters.chat(
+                        bot_username) & (
+                                    pyrogram.filters.video
+                                    | pyrogram.filters.photo
+                                    | pyrogram.filters.audio
+                                    | pyrogram.filters.voice
+                                    | pyrogram.filters.animation
+                                    | pyrogram.filters.document
+                            )
+                )
+            )
             self.bot.add_handler(
                 CallbackQueryHandler(
                     self.callback_data,
@@ -948,7 +974,14 @@ class Bot:
             self.bot.add_handler(
                 MessageHandler(
                     self.process_error_message,
-                    filters=pyrogram.filters.user(self.root)
+                    filters=pyrogram.filters.user(self.root) & ~(
+                            pyrogram.filters.video
+                            | pyrogram.filters.photo
+                            | pyrogram.filters.audio
+                            | pyrogram.filters.voice
+                            | pyrogram.filters.animation
+                            | pyrogram.filters.document
+                    )
                 )
             )
             self.is_bot_running: bool = True

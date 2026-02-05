@@ -38,11 +38,11 @@
 
 *本项目按“原样”提供，不附带任何明示或暗示的保证。*
 
-作者:[Gentlesprite](https://github.com/Gentlesprite)
-
-B站视频教程:[点击观看](https://www.bilibili.com/video/BV1nCp8evEwv)
-
-Telegram交流群:[点击加入](https://t.me/+6KKA-buFaixmNTE1)
+|      作者      |       [Gentlesprite](https://github.com/Gentlesprite)        |
+| :------------: | :----------------------------------------------------------: |
+|  B站视频教程   |   [点击观看](https://www.bilibili.com/video/BV1nCp8evEwv)    |
+| Telegram交流群 |          [点击加入](https://t.me/+6KKA-buFaixmNTE1)          |
+|  **支持作者**  | [点击跳转](https://github.com/Gentlesprite/Telegram_Restricted_Media_Downloader/tree/main?tab=readme-ov-file#70%E6%94%AF%E6%8C%81%E4%BD%9C%E8%80%85) |
 
 # 1.0.下载地址:
 
@@ -199,6 +199,12 @@ Telegram交流群:[点击加入](https://t.me/+6KKA-buFaixmNTE1)
    | `/upload`          | `/upload` `本地文件` `目标频道`                              | 上传**本地的文件**到**指定频道**。                           |
    | `/upload_r`        | `/upload_r 本地文件夹 目标频道`                              | **递归**上传文件夹(**包含子文件夹**)到**指定频道**。         |
    | `/download_chat`   | `/download_chat 频道链接`                                    | 下载**指定频道**并支持**通过内联键盘自定义内容过滤**。       |
+
+   其他功能:
+   - （`≥v1.8.7`）转发`视频`、`图片`、`音频`、`语音`、`GIF`、`文档`类型的消息给机器人，即可自动下载。
+      - 此项功能不受用户自定义下载类型限制，确保文件即时获取。
+      - 转发的消息将按新消息处理，每次均生成独立文件命名。暂不支持重复文件识别，请妥善管理多次转发的相同内容。
+      - 此功能仅用于便利用户日常使用，对于无法被转发、下载的消息，请根据实际需求使用对应的命令。
 
 6. `/help`命令使用教程，如下图所示：
 
@@ -893,51 +899,18 @@ _**设置命令行运行参数**需先在**软件目录**打开**终端**，或*
 
 **目前支持的**命令行参数用法及解释如下表所示：
 
-| 短参数 |   长参数    |          解释          |
-| :----: | :---------: | :--------------------: |
-|  `-v`  | `--version` |      展示版本信息      |
-|  `-h`  |  `--help`   |        展示帮助        |
-|  `-c`  | `--config`  | 设置用户配置文件的路径 |
-|  `-s`  | `--session` |   设置会话文件的路径   |
-|  `-t`  |  `--temp`   |   设置运行缓存的路径   |
+| 短参数 |   长参数    |            解释            |
+| :----: | :---------: | :------------------------: |
+|  `-h`  |  `--help`   |          展示帮助          |
+|  `-v`  | `--version` |        展示版本信息        |
+|  `-q`  |  `--quiet`  | 跳过重新配置文件的确认提示 |
+|  `-c`  | `--config`  |   设置用户配置文件的路径   |
+|  `-s`  | `--session` |     设置会话文件的路径     |
+|  `-t`  |  `--temp`   |     设置运行缓存的路径     |
 
 _**长参数与短参数最终结果一致。**_
 
-1. `-v`、`--version`参数用法：
-
-   该参数用于展示版本信息。
-
-   - 对于生产环境用户（**需要先完成前置步骤**"[_3.0.在生产环境中运行"_](https://github.com/Gentlesprite/Telegram_Restricted_Media_Downloader?tab=readme-ov-file#30%E5%9C%A8%E7%94%9F%E4%BA%A7%E7%8E%AF%E5%A2%83%E4%B8%AD%E8%BF%90%E8%A1%8C)）:
-
-     ```bash
-     TRMD.exe -v
-     ```
-
-     ```bash
-     TRMD.exe --version
-     ```
-
-   - 对于Windows用户:
-
-     ```bash
-     TRMD.exe -v
-     ```
-
-     ```bash
-     TRMD.exe --version
-     ```
-
-   - 对于Linux用户:
-
-     ```bash
-     ./TRMD -v
-     ```
-
-     ```bash
-     ./TRMD --version
-     ```
-
-2. `-h`、`--help`参数用法：
+1. `-h`、`--help`参数用法：
 
    该参数用于展示帮助。
 
@@ -971,7 +944,79 @@ _**长参数与短参数最终结果一致。**_
      ./TRMD --help
      ```
 
-3. `-c`、`--config`参数用法：
+2. `-v`、`--version`参数用法：
+
+   该参数用于展示版本信息。
+
+   - 对于生产环境用户（**需要先完成前置步骤**"[_3.0.在生产环境中运行"_](https://github.com/Gentlesprite/Telegram_Restricted_Media_Downloader?tab=readme-ov-file#30%E5%9C%A8%E7%94%9F%E4%BA%A7%E7%8E%AF%E5%A2%83%E4%B8%AD%E8%BF%90%E8%A1%8C)）:
+
+     ```bash
+     TRMD.exe -v
+     ```
+
+     ```bash
+     TRMD.exe --version
+     ```
+
+   - 对于Windows用户:
+
+     ```bash
+     TRMD.exe -v
+     ```
+
+     ```bash
+     TRMD.exe --version
+     ```
+
+   - 对于Linux用户:
+
+     ```bash
+     ./TRMD -v
+     ```
+
+     ```bash
+     ./TRMD --version
+     ```
+
+3. `-q`、`--quiet`参数用法：
+   
+    | 使用须知                                         |
+    | ------------------------------------------------ |
+    | _1.该参数用于跳过重新配置文件的确认提示。_       |
+    | _2.用户配置文件缺少必要参数时，指定该参数无效。_ |
+    | _3.该参数为一次性设置，不记忆。_                 |
+
+   - 对于生产环境用户（**需要先完成前置步骤**"[_3.0.在生产环境中运行"_](https://github.com/Gentlesprite/Telegram_Restricted_Media_Downloader?tab=readme-ov-file#30%E5%9C%A8%E7%94%9F%E4%BA%A7%E7%8E%AF%E5%A2%83%E4%B8%AD%E8%BF%90%E8%A1%8C)）:
+   
+     ```bash
+     python3 main.py -q
+     ```
+     
+     ```bash
+     python3 main.py --quiet
+     ```
+     
+   - 对于Windows用户:
+   
+     ```bash
+     TRMD.exe -q
+     ```
+     
+     ```bash
+     TRMD.exe --quiet
+     ```
+     
+   - 对于Linux用户:
+   
+     ```bash
+     ./TRMD -q
+     ```
+     
+     ```bash
+     ./TRMD --quiet
+     ```
+
+4. `-c`、`--config`参数用法：
 
    | 使用须知                                                     |
    | ------------------------------------------------------------ |
@@ -979,6 +1024,7 @@ _**长参数与短参数最终结果一致。**_
    | _2.**该参数旨在解决多个实例（多开）场景下，避免重复部署软件本体而设计的配置分离方案。**_ |
    | _3.该参数需指定一个**符合**["2.3.配置文件说明(用户配置文件)"](https://github.com/Gentlesprite/Telegram_Restricted_Media_Downloader?tab=readme-ov-file#%E7%94%A8%E6%88%B7%E9%85%8D%E7%BD%AE%E6%96%87%E4%BB%B6)格式规范的文件，**并且后缀名需为`.yaml`**。_ |
    | _4.当指定的**文件路径无效**时，将使用软件**默认**设置。_     |
+   | _5.该参数为一次性设置，不记忆。_                             |
 
    - 对于生产环境用户（**需要先完成前置步骤**"[_3.0.在生产环境中运行"_](https://github.com/Gentlesprite/Telegram_Restricted_Media_Downloader?tab=readme-ov-file#30%E5%9C%A8%E7%94%9F%E4%BA%A7%E7%8E%AF%E5%A2%83%E4%B8%AD%E8%BF%90%E8%A1%8C)）:
 
@@ -1016,18 +1062,19 @@ _**长参数与短参数最终结果一致。**_
       ./TRMD --config /home/username/files/example.yaml
       ```
 
-4. `-s`、`--session`参数用法：
+5. `-s`、`--session`参数用法：
 
-    > ⚠️ 注意：
-    > 自版本`≥v1.8.5`起：  
-    > `-s`、`--session`参数在设置后将被保存到用户配置文件的`session_directory`参数中，下次使用时无需重复指定，除非需要修改该设置。   
+   > ⚠️ 注意：  
+   > 自版本`≥v1.8.5`起：  
+   > `-s`、`--session`参数在设置后将被保存到用户配置文件的`session_directory`参数中，下次使用时无需重复指定，除非需要修改该设置。   
 
-   | 使用须知                                                     |
-   | ------------------------------------------------------------ |
-   | _1.该参数用于设置会话文件的路径。_                           |
-   | _2.软件会在用户登录成功时后，默认在运行目录下生成 `session`文件夹，用于保存当前账号信息，以便后续快速登录。_ |
-   | _2.**该参数旨在**解决多账号登录场景下需**手动重命名**会话文件的问题，使用该参数用户可通过**直接**指定不同路径，选择对应账号进行登录。_ |
-   | _3.该参数需指定一个**文件夹**，可包含已有的 `.session`文件，指定为空文件夹或不存在时，登录后将在**该路径自动生成**会话文件。_ |
+   | 使用须知                                                                        |
+   |-----------------------------------------------------------------------------|
+   | _1.该参数用于设置会话文件的路径。_                                                         |
+   | _2.软件会在用户登录成功时后，默认在运行目录下生成 `session`文件夹，用于保存当前账号信息，以便后续快速登录。_               |
+   | _3.**该参数旨在**解决多账号登录场景下需**手动重命名**会话文件的问题，使用该参数用户可通过**直接**指定不同路径，选择对应账号进行登录。_ |
+   | _4.该参数需指定一个**文件夹**，可包含已有的 `.session`文件，指定为空文件夹或不存在时，登录后将在**该路径自动生成**会话文件。_  |
+   | _5.该参数设置后会被记忆，下次无需重复设置（`≥v1.8.5`）。_                                         |
 
    - 对于生产环境用户（**需要先完成前置步骤**"[_3.0.在生产环境中运行"_](https://github.com/Gentlesprite/Telegram_Restricted_Media_Downloader?tab=readme-ov-file#30%E5%9C%A8%E7%94%9F%E4%BA%A7%E7%8E%AF%E5%A2%83%E4%B8%AD%E8%BF%90%E8%A1%8C)）:
 
@@ -1065,9 +1112,9 @@ _**长参数与短参数最终结果一致。**_
      ./TRMD --session /home/username/files/session
      ```
 
-5. `-t`、`--temp`参数用法：
+6. `-t`、`--temp`参数用法：
 
-    > ⚠️ 注意：
+    > ⚠️ 注意：  
     > 自版本`≥v1.8.5`起：  
     > `-t`、`--temp`参数在设置后将被保存到用户配置文件的`temp_directory`参数中，下次使用时无需重复指定，除非需要修改该设置。   
 
@@ -1077,42 +1124,44 @@ _**长参数与短参数最终结果一致。**_
    | _2.缓存即软件运行过程中，记录**下载和上传**信息的**存储中转站**。_ |
    | _3.**断点续传**的实现同样离不开缓存机制的设计，用户可**根据实际需求自定义缓存存放的路径**。_ |
    | _4.该参数需指定一个**文件夹**，指定为空文件夹或不存在时，运行时将在**该路径自动生成**生成缓存文件。_ |
-
+   | _5.该参数设置后会被记忆，下次无需重复设置（`≥v1.8.5`）。_    |
+   
    - 对于生产环境用户（**需要先完成前置步骤**"[_3.0.在生产环境中运行"_](https://github.com/Gentlesprite/Telegram_Restricted_Media_Downloader?tab=readme-ov-file#30%E5%9C%A8%E7%94%9F%E4%BA%A7%E7%8E%AF%E5%A2%83%E4%B8%AD%E8%BF%90%E8%A1%8C)）:
-
+   
      以`Linux`系统为例（`Winodws`系统同理），此处假设缓存文件位于`/home/username/files/temp`。
-
+   
      ```bash
      python3 main.py -t /home/username/files/temp
      ```
-
+   
      ```bash
      python3 main.py --temp /home/username/temp
      ```
-
+   
    - 对于Windows用户:
-
+   
      此处假设缓存文件位于`C:\files\temp`。
-
+   
      ```bash
      TRMD.exe -t C:\files\temp
      ```
-
+   
      ```bash
      TRMD.exe --temp C:\files\temp
      ```
-
+   
    - 对于Linux用户:
-
+   
      此处假设缓存文件位于`/home/username/files/temp`。
-
+   
      ```bash
      ./TRMD -t /home/username/files/temp
      ```
-
+   
      ```bash
      ./TRMD --temp /home/username/files/temp
      ```
+
    </details>
 
 
