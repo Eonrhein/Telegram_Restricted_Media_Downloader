@@ -52,7 +52,7 @@ SLEEP_THRESHOLD = 60
 AUTHOR = 'Gentlesprite'
 __version__ = '1.8.8'
 __license__ = 'MIT License'
-__update_date__ = '2026/02/05 00:32:47'
+__update_date__ = '2026/02/05 01:32:56'
 __copyright__ = f'Copyright (C) 2024-{__update_date__[:4]} {AUTHOR} <https://github.com/Gentlesprite>'
 SOFTWARE_FULL_NAME = 'Telegram Restricted Media Downloader'
 SOFTWARE_SHORT_NAME = 'TRMD'
@@ -104,7 +104,7 @@ console_handler = RichHandler(
     console=console,
     rich_tracebacks=True,
     show_path=False,
-    omit_repeated_times=False,
+    omit_repeated_times=True,
     log_time_format=LOG_TIME_FORMAT
 )
 # 配置日志记录器(根记录器设置为最低级别 DEBUG)
