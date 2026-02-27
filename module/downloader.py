@@ -51,7 +51,11 @@ from module import (
 )
 from module.filter import Filter
 from module.app import Application
-from module.bot import Bot, KeyboardButton, CallbackData
+from module.bot import (
+    Bot,
+    KeyboardButton,
+    CallbackData
+)
 from module.enums import (
     DownloadStatus,
     LinkType,
@@ -1259,7 +1263,7 @@ class TelegramRestrictedMediaDownloader(Bot):
     async def cancel_listen(
             self,
             client: pyrogram.Client,
-            message: pyrogram.types,
+            message: pyrogram.types.Message,
             link: str,
             command: str
     ):
@@ -1294,7 +1298,7 @@ class TelegramRestrictedMediaDownloader(Bot):
         if meta is None:
             return None
 
-        async def add_listen_chat(_link: str, _listen_chat: dict, _callback: callable) -> bool:
+        async def add_listen_chat(_link: str, _listen_chat: dict, _callback: Callable) -> bool:
             if _link not in _listen_chat:
                 try:
                     chat = await self.user.get_chat(_link)

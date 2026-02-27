@@ -5,6 +5,10 @@
 # File:util.py
 import os
 import re
+import sys
+import stat
+import string
+import random
 
 from typing import Tuple, List, Union, Optional
 
@@ -15,10 +19,13 @@ from pyrogram.types.messages_and_media import ReplyParameters
 from urllib.parse import parse_qs, urlparse
 from rich.text import Text
 
+from module import log
+from module.parser import PARSE_ARGS
 from module.enums import (
     Link,
     LinkType,
-    DownloadType
+    DownloadType,
+    ENVIRON
 )
 
 
@@ -35,8 +42,7 @@ def get_terminal_width() -> int:
         terminal_width: int = os.get_terminal_size().columns
     except OSError:
         pass
-    finally:
-        return terminal_width
+    return terminal_width
 
 
 def truncate_display_filename(file_name: str) -> Text:
@@ -305,6 +311,59 @@ async def format_chat_link(
 async def get_my_id(client: pyrogram.Client) -> int:
     me = await client.get_me()
     return me.id
+
+
+def add_executable_permission(file_path: str) -> bool:
+    """确保文件具有执行权限(仅Linux/macOS)。"""
+    if sys.platform not in ('linux', 'darwin'):
+        return True
+    try:
+        st = os.stat(file_path)
+        mode = st.st_mode
+        if not (mode & stat.S_IXUSR):
+            os.chmod(file_path, mode | stat.S_IXUSR)
+            log.info(f'已为"{file_path}"添加执行权限。')
+            return True
+    except Exception as e:
+        log.warning(f'添加执行权限失败:{e}。')
+        return False
+
+
+def get_subprocess_args(main_file: str) -> list:
+    """获取子进程参数列表。"""
+    args = [sys.argv[0]] if '__compiled__' in globals() else [sys.executable, main_file]
+    # 添加非web参数
+    if PARSE_ARGS.quiet:
+        args.append('--quiet')
+    if PARSE_ARGS.config:
+        args.extend(['--config', PARSE_ARGS.config])
+    if PARSE_ARGS.session:
+        args.extend(['--session', PARSE_ARGS.session])
+    if PARSE_ARGS.temp:
+        args.extend(['--temp', PARSE_ARGS.temp])
+
+    return args
+
+
+def gen_random_credential() -> dict:
+    chars = string.ascii_letters + string.digits
+    username = ''.join(random.choices(chars, k=8))
+    password = ''.join(random.choices(chars, k=12))
+    return {
+        'username': username,
+        'password': password
+    }
+
+
+def check_environ() -> None:
+    if PARSE_ARGS.web is not None:
+        environ_name, environ_param = ENVIRON.TRMD_WEB_PORT, str(PARSE_ARGS.web)
+        os.environ[environ_name] = environ_param
+        log.info(f'添加系统环境变量:"{environ_name}={environ_param}"。')
+
+
+def is_nuitka() -> bool:
+    return '__compiled__' in globals()
 
 
 class Issues:

@@ -9,8 +9,16 @@ import sys
 from pathlib import Path
 
 from module import AUTHOR, __version__, __update_date__, SOFTWARE_SHORT_NAME
+from module.ttyd import TTYD
 
 platform = sys.platform
+
+
+def ready_zstandard():
+    try:
+        import zstandard
+    except (ImportError, ModuleNotFoundError, NameError):
+        os.system('pip install zstandard')
 
 
 def ready_nuitka():
@@ -62,6 +70,15 @@ def ready_pymediainfo() -> tuple:
         sys.exit()
 
 
+def ready_ttyd():
+    file_name = TTYD.get_ttyd_executable()
+    path = str(Path(f'res/bin/{file_name}').resolve())
+    if os.path.isfile(path):
+        return file_name, path
+    print(f'未找到ttyd。')
+    sys.exit()
+
+
 def build(command):
     print(command)
     os.system(command)
@@ -70,7 +87,9 @@ def build(command):
 if __name__ == '__main__':
     try:
         ready_nuitka()
+        ready_zstandard()
         media_info_lib_filename, media_info_lib_path = ready_pymediainfo()
+        ttyd_filename, ttyd_path = ready_ttyd()
         extension = '.exe' if platform == 'win32' else ''
         ico_path = 'res/icon.ico'
         output = 'output'
@@ -83,6 +102,7 @@ if __name__ == '__main__':
         build_command += f'--windows-icon-from-ico="{ico_path}" --assume-yes-for-downloads '
         build_command += f'--output-filename="{SOFTWARE_SHORT_NAME}{extension}" --copyright="{copy_right}" --msvc=latest '
         build_command += f'--include-data-file="{media_info_lib_path}"={media_info_lib_filename} '
+        build_command += f'--include-data-file="{ttyd_path}"={ttyd_filename} '
         build_command += f'--remove-output '
         build_command += f'--no-deployment-flag=self-execution '
         build_command += f'--script-name={main}'

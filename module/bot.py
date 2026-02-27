@@ -882,7 +882,7 @@ class Bot:
     async def cancel_listen(
             self,
             client: pyrogram.Client,
-            message: pyrogram.types,
+            message: pyrogram.types.Message,
             link: str,
             command: str
     ):
@@ -891,7 +891,7 @@ class Bot:
     async def listen_info(
             self,
             client: pyrogram.Client,
-            message: pyrogram.types
+            message: pyrogram.types.Message
     ):
         async def __listen_info(_listen_chat: dict, _text: str):
             last_message = await client.send_message(
@@ -1771,7 +1771,7 @@ class KeyboardButton:
 
     @staticmethod
     def keyword_filter_button(
-            adding_keywords=Union[list, None]
+            adding_keywords: Optional[list] = None
     ):
         """关键词过滤设置按钮。"""
         if adding_keywords:

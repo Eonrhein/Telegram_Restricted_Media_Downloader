@@ -78,6 +78,19 @@ class SaveDirectoryPrefix:
                 yield value
 
 
+class WebMeta:
+    IP: str = 'IP'
+    PORT: str = 'port'
+    USERNAME: str = 'username'
+    PASSWORD: str = 'password'
+
+
+class ENVIRON:
+    TRMD_WEB_PID: str = 'TRMD_WEB_PID'
+    TRMD_WEB_PORT: str = 'TRMD_WEB_PORT'
+    PSMUX_SESSION_NAME: str = 'PSMUX_SESSION_NAME'  # Windows专属。
+
+
 class KeyWord:
     LINK: str = 'link'
     LINK_TYPE: str = 'link type'
@@ -477,11 +490,13 @@ class Validator:
             return False
         except Exception as e:
             log.error(f'意外的错误,原因:"{e}"')
+            return False
 
     @staticmethod
     def is_valid_enable_proxy(enable_proxy: Union[str, bool]) -> bool:
         if enable_proxy in ('y', 'n'):
             return True
+        return False
 
     @staticmethod
     def is_valid_scheme(scheme: str, valid_format: list) -> bool:
@@ -515,6 +530,7 @@ class Validator:
                 if dtype:
                     return True
                 return False
+            return False
         except Exception as e:
             log.error(f'意外的错误,原因:"{e}"')
             return False
