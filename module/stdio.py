@@ -7,11 +7,10 @@ import os
 import sys
 import csv
 import base64
-import random
 import datetime
 
 from io import BytesIO
-from typing import Union
+from typing import Union, Callable
 
 import qrcode
 
@@ -33,7 +32,6 @@ from module import (
     log,
     console,
     README,
-    SOFTWARE_FULL_NAME,
     __version__,
     __copyright__,
     __license__
@@ -411,7 +409,7 @@ class StatisticalTable:
 
     @staticmethod
     def print_env_table(app):
-        log.info(
+        log.debug(
             {
                 'platform': app.platform,
                 'python_version': sys.version.split()[0],
@@ -432,6 +430,7 @@ class StatisticalTable:
                 ['TRMD版本', __version__],
                 ['Pyrogram版本', pyrogram_version],
                 ['用户配置文件', app.config_path],
+                ['保存目录', app.save_directory],
                 ['会话目录', app.work_directory],
                 ['缓存目录', app.temp_directory],
                 ['使用系统代理', app.enable_proxy]
@@ -528,6 +527,8 @@ class MetaData:
             return windll.kernel32.SetConsoleTextAttribute(windll.kernel32.GetStdHandle(-0xb), 0x7)
         except ImportError:  # v1.2.9 抛出错误代表非Windows平台。
             return True
+        except Exception:
+            return True
 
     @staticmethod
     def pay():
@@ -545,14 +546,14 @@ class MetaData:
                     ),
                     justify='center'
                 )
-            except Exception as _:
-                return _
+            except Exception:
+                pass
 
     @staticmethod
     def print_meta():
         console.print(
             GradientColor.gen_gradient_text(
-                text=random.Random().choice([Banner.TRMD, Banner.C]),
+                text=Banner.TRMD,
                 gradient_color=GradientColor.generate_gradient(
                     start_color='#fa709a',
                     end_color='#fee140',
@@ -565,14 +566,14 @@ class MetaData:
 
     @staticmethod
     def print_about():
-        console.print(f'[bold]{SOFTWARE_FULL_NAME} v{__version__}[/bold],\n[i]{__copyright__}[/i]')
+        console.print(f'[i]{__copyright__}[/i]')
         console.print(f'Licensed under the terms of the {__license__}.', end='\n')
 
     @staticmethod
     def print_disclaimer():
         console.print(GradientColor.gen_gradient_text(
             '\t所有使用本软件的行为及其后果均由使用者自行承担全部法律责任，开发者不对任何使用行为及其后果负责。',
-            gradient_color=GradientColor.RED_GRADIENT_15)
+            gradient_color=GradientColor.BLUE2PURPLE_14)
         )
 
     @staticmethod
@@ -612,7 +613,7 @@ class MetaData:
         console.print(Markdown(README))
 
     @staticmethod
-    def __qr_terminal_str(str_obj: str, version: int = 1, render: callable = QrcodeRender.render_2by1) -> str:
+    def __qr_terminal_str(str_obj: str, version: int = 1, render: Callable = QrcodeRender.render_2by1) -> str:
         qr = qrcode.QRCode(version)
         qr.add_data(str_obj)
         qr.make()
@@ -671,3 +672,12 @@ class ProgressBar:
             info=f'{MetaData.suitable_units_display(current)}/{MetaData.suitable_units_display(total)}',
             total=total
         )
+
+    @staticmethod
+    def bot(completed, total, display_width=20):
+        if total == 0:
+            return '░' * display_width
+        ratio = completed / total
+        completed_bars = int(ratio * display_width)
+        remaining_bars = display_width - completed_bars
+        return '█' * completed_bars + '░' * remaining_bars

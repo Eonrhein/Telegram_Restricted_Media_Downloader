@@ -124,16 +124,6 @@ class Web(TTYD, TMUX):
                     [self.tmux_path, 'new-session', '-d', '-s', session_name, 'cmd', '/k', bat_path],
                     capture_output=True
                 )
-                # 设置psmux选项（设置终端类型，禁用鼠标）。
-                # 注意：需要tmux>v0.3.7或更高版本才能正确禁用鼠标。
-                subprocess.run(
-                    [self.tmux_path, 'set-option', '-t', session_name, '-g', 'mouse', 'off'],
-                    capture_output=True
-                )
-                subprocess.run(
-                    [self.tmux_path, 'set-option', '-t', session_name, '-g', 'default-terminal', 'xterm-256color'],
-                    capture_output=True
-                )
                 log.info(f'在后台创建新会话并执行程序:"{session_name}"。')
             # 再次检查会话是否创建成功。
             result = subprocess.run(
