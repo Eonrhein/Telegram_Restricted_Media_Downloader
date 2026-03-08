@@ -957,13 +957,12 @@ class TelegramRestrictedMediaDownloader(Bot):
                     protect_content=False
                 )
             else:
-                await self.app.client.forward_messages(
+                await self.app.client.copy_message(
                     chat_id=target_chat_id,
                     from_chat_id=origin_chat_id,
-                    message_ids=message_id,
+                    message_id=message_id,
                     disable_notification=True,
-                    protect_content=False,
-                    hide_sender_name=True
+                    protect_content=False
                 )
             p_message_id = ','.join(map(str, media_group)) if media_group else message_id
             console.log(
@@ -1231,7 +1230,7 @@ class TelegramRestrictedMediaDownloader(Bot):
                 text='⬇️⬇️⬇️出错了⬇️⬇️⬇️\n(具体原因请前往终端查看报错信息)'
             )
         finally:
-            if last_message and last_message.text == loading:
+            if last_message and getattr(last_message, 'text', '') == loading:
                 await last_message.delete()
 
     async def cancel_listen(
