@@ -82,7 +82,8 @@ from module.path_tool import (
     split_path,
     compare_file_size,
     move_to_save_directory,
-    safe_replace
+    safe_replace,
+    validate_title
 )
 from module.task import DownloadTask, UploadTask
 from module.stdio import ProgressBar, Base64Image, MetaData
@@ -126,6 +127,11 @@ class TelegramRestrictedMediaDownloader(Bot):
                     save_directory = save_directory.replace(
                         placeholder,
                         str(getattr(getattr(message, 'chat'), 'id', 'UNKNOWN_CHAT_ID'))
+                    )
+                if placeholder == SaveDirectoryPrefix.CHAT_NAME:
+                    save_directory = save_directory.replace(
+                        placeholder,
+                        validate_title(str(getattr(getattr(message, 'chat'), 'full_name', 'UNKNOWN_CHAT_NAME')))
                     )
                 if placeholder == SaveDirectoryPrefix.MIME_TYPE:
                     for dtype in DownloadType():
@@ -2311,7 +2317,7 @@ class TelegramRestrictedMediaDownloader(Bot):
             return links
         elif not self.app.bot_token:
             console.log('🔗 没有找到有效链接,程序已退出。', style='#FF4689')
-            sys.exit(0)
+            sys.exit(1)
         else:
             console.log('🔗 没有找到有效链接。', style='#FF4689')
             return None
@@ -2384,13 +2390,13 @@ class TelegramRestrictedMediaDownloader(Bot):
             if str(e) == '0':
                 log.error('「网络」或「代理问题」,在确保当前网络连接正常情况下检查:\n「VPN」是否可用,「软件代理」是否配置正确。')
                 console.print(Issues.PROXY_NOT_CONFIGURED)
-                raise SystemExit(0)
+                raise SystemExit(1)
             log.exception(f'运行出错,{_t(KeyWord.REASON)}:"{e}"')
         except BadMsgNotification as e:
             record_error: bool = True
             if str(e) in (str(BadMsgNotification(16)), str(BadMsgNotification(17))):
                 console.print(Issues.SYSTEM_TIME_NOT_SYNCHRONIZED)
-                raise SystemExit(0)
+                raise SystemExit(1)
             log.exception(f'运行出错,{_t(KeyWord.REASON)}:"{e}"')
         except (SessionRevoked, AuthKeyUnregistered, SessionExpired, Unauthorized) as e:
             log.error(f'登录时遇到错误,{_t(KeyWord.REASON)}:"{e}"')
