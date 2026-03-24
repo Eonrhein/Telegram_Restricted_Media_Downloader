@@ -95,6 +95,7 @@ from module.util import (
     get_message_by_link,
     get_chat_with_notify,
     safe_message,
+    safe_delete_message,
     truncate_display_filename,
     Issues
 )
@@ -930,7 +931,8 @@ class TelegramRestrictedMediaDownloader(Bot):
             target_chat_id: Union[str, int],
             target_link: str,
             download_upload: Optional[bool] = False,
-            media_group: Optional[list] = None
+            media_group: Optional[list] = None,
+            done_notice: Optional[bool] = True
     ):
         try:
             if not self.check_type(message):
@@ -940,13 +942,14 @@ class TelegramRestrictedMediaDownloader(Bot):
                     f'{_t(KeyWord.CHANNEL)}:"{target_chat_id}",'
                     f'{_t(KeyWord.STATUS)}:{_t(KeyWord.FORWARD_SKIP)}。'
                 )
-                await asyncio.create_task(
-                    self.done_notice(
-                        f'"{origin_chat_id}",{_t(KeyWord.MESSAGE_ID)}:{message_id}'
-                        f' ➡️ '
-                        f'"{target_chat_id}",{_t(KeyWord.FORWARD_SKIP)}(该类型已过滤)。'
+                if done_notice:
+                    await asyncio.create_task(
+                        self.done_notice(
+                            f'"{origin_chat_id}",{_t(KeyWord.MESSAGE_ID)}:{message_id}'
+                            f' ➡️ '
+                            f'"{target_chat_id}",{_t(KeyWord.FORWARD_SKIP)}(该类型已过滤)。'
+                        )
                     )
-                )
                 return None
             if media_group:
                 await self.app.client.copy_media_group(
@@ -956,12 +959,24 @@ class TelegramRestrictedMediaDownloader(Bot):
                     disable_notification=True
                 )
             elif getattr(message, 'text', False):
-                await self.app.client.send_message(
-                    chat_id=target_chat_id,
-                    text=message.text,
-                    disable_notification=True,
-                    protect_content=False
-                )
+                while True:
+                    try:
+                        await self.app.client.send_message(
+                            chat_id=target_chat_id,
+                            text=message.text,
+                            disable_notification=True,
+                            protect_content=False
+                        )
+                        break
+                    except (FloodWait, FloodPremiumWait) as e:
+                        amount = e.value
+                        console.log(
+                            f'[{self.app.client.name}]发送消息请求频繁,要求等待{amount}秒后继续运行。',
+                            style='#FF4689'
+                        )
+                        await asyncio.sleep(amount)
+                    except Exception as e:
+                        log.error(f'无法转发"{message.text}"消息,{_t(KeyWord.REASON)}:"{e}"')
             else:
                 await self.app.client.copy_message(
                     chat_id=target_chat_id,
@@ -977,13 +992,14 @@ class TelegramRestrictedMediaDownloader(Bot):
                 f'{_t(KeyWord.CHANNEL)}:"{target_chat_id}",'
                 f'{_t(KeyWord.STATUS)}:{_t(KeyWord.FORWARD_SUCCESS)}。'
             )
-            await asyncio.create_task(
-                self.done_notice(
-                    f'"{origin_chat_id}",{_t(KeyWord.MESSAGE_ID)}:{p_message_id}'
-                    f' ➡️ '
-                    f'"{target_chat_id}",{_t(KeyWord.FORWARD_SUCCESS)}。'
+            if done_notice:
+                await asyncio.create_task(
+                    self.done_notice(
+                        f'"{origin_chat_id}",{_t(KeyWord.MESSAGE_ID)}:{p_message_id}'
+                        f' ➡️ '
+                        f'"{target_chat_id}",{_t(KeyWord.FORWARD_SUCCESS)}。'
+                    )
                 )
-            )
         except (ChatForwardsRestricted_400, ChatForwardsRestricted_406):
             if not download_upload:
                 if (
@@ -1096,7 +1112,8 @@ class TelegramRestrictedMediaDownloader(Bot):
                         message_id=message_id,
                         origin_chat_id=origin_chat_id,
                         target_chat_id=target_chat_id,
-                        target_link=target_link
+                        target_link=target_link,
+                        done_notice=False
                     )
                     record_id.append(message_id)
                 except (ChatForwardsRestricted_400, ChatForwardsRestricted_406):
@@ -1154,8 +1171,6 @@ class TelegramRestrictedMediaDownloader(Bot):
                         )
                     )
             else:
-                if isinstance(last_message, str):
-                    log.warning('消息过长编辑频繁,暂时无法通过机器人显示通知。')
                 if not record_id:
                     last_message = await self.safe_edit_message(
                         client=client,
@@ -1181,15 +1196,14 @@ class TelegramRestrictedMediaDownloader(Bot):
                         topic=origin_chat.is_forum
                     )
                     invalid_chat = invalid_chat if invalid_chat else 'Your Saved Messages'
-                    for i in invalid_id:
-                        last_message: Union[pyrogram.types.Message, str, None] = await self.safe_edit_message(
-                            client=client,
-                            message=message,
-                            last_message_id=last_message.id,
-                            text=safe_message(
-                                f'{last_message.text}\n{invalid_chat}/{i}'
-                            )
-                        )
+                    invalid_text = '\n'.join(f'{invalid_chat}/{i}' for i in invalid_id)
+                    await safe_delete_message(last_message) if len(invalid_text) >= 3969 else None
+                    last_message = await self.safe_edit_message(
+                        client=client,
+                        message=message,
+                        last_message_id=last_message.id,
+                        text=safe_message(f'{last_message.text}\n{invalid_text}')
+                    )
                 direct_url: str = await format_chat_link(
                     link=target_link,
                     client=self.app.client,
@@ -1237,7 +1251,7 @@ class TelegramRestrictedMediaDownloader(Bot):
             )
         finally:
             if last_message and getattr(last_message, 'text', '') == loading:
-                await last_message.delete()
+                await safe_delete_message(last_message)
 
     async def cancel_listen(
             self,
@@ -1344,7 +1358,7 @@ class TelegramRestrictedMediaDownloader(Bot):
                             reply_parameters=ReplyParameters(message_id=message.id),
                             link_preview_options=LINK_PREVIEW_OPTIONS,
                             text=f'✅新增`监听下载频道`频道:\n')
-                    last_message: Union[pyrogram.types.Message, str, None] = await self.safe_edit_message(
+                    last_message: Union[pyrogram.types.Message, None] = await self.safe_edit_message(
                         client=client,
                         message=message,
                         last_message_id=last_message.id,
