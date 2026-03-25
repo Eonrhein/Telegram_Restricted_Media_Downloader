@@ -41,6 +41,7 @@ class DownloadType:
     AUDIO: str = 'audio'
     VOICE: str = 'voice'
     ANIMATION: str = 'animation'
+    VIDEO_NOTE: str = 'video_note'
 
     def __iter__(self):
         for key, value in vars(self.__class__).items():
@@ -1220,7 +1221,7 @@ class GetStdioParams:
         while True:
             download_type: Union[str, list] = console.input(
                 f'输入需要下载的「媒体类型」(以空格分隔可多选)。上一次的记录是:「{last_record if last_record else GetStdioParams.UNDEFINED}」'
-                f'格式 - 「video photo document audio voice animation」{default_prompt}:').strip()
+                f'格式 - 「video photo document audio voice animation video_note」{default_prompt}:').strip()
             if download_type == '' and last_record is not None:
                 download_type = last_record
             if download_type == '':
@@ -1446,12 +1447,14 @@ class BotCallbackText:
     TOGGLE_FORWARD_ANIMATION: str = 'toggle_forward_animation'
     TOGGLE_FORWARD_DOCUMENT: str = 'toggle_forward_document'
     TOGGLE_FORWARD_TEXT: str = 'toggle_forward_text'
+    TOGGLE_FORWARD_VIDEO_NOTE: str = 'toggle_forward_video_note'
     TOGGLE_DOWNLOAD_VIDEO: str = 'toggle_download_video'
     TOGGLE_DOWNLOAD_PHOTO: str = 'toggle_download_photo'
     TOGGLE_DOWNLOAD_AUDIO: str = 'toggle_download_audio'
     TOGGLE_DOWNLOAD_VOICE: str = 'toggle_download_voice'
     TOGGLE_DOWNLOAD_ANIMATION: str = 'toggle_download_animation'
     TOGGLE_DOWNLOAD_DOCUMENT: str = 'toggle_download_document'
+    TOGGLE_DOWNLOAD_VIDEO_NOTE: str = 'toggle_download_video_note'
     EXPORT_TABLE: str = 'export_table'
     SHUTDOWN: str = 'shutdown'
     SETTING: str = 'setting'
@@ -1472,6 +1475,7 @@ class BotCallbackText:
     TOGGLE_DOWNLOAD_CHAT_DTYPE_VOICE: str = 'toggle_download_chat_voice'
     TOGGLE_DOWNLOAD_CHAT_DTYPE_ANIMATION: str = 'toggle_download_chat_animation'
     TOGGLE_DOWNLOAD_CHAT_DTYPE_DOCUMENT: str = 'toggle_download_chat_document'
+    TOGGLE_DOWNLOAD_CHAT_DTYPE_VIDEO_NOTE: str = 'toggle_download_chat_video_note'
     TOGGLE_DOWNLOAD_CHAT_COMMENT: str = 'toggle_download_chat_comment'
     CALENDAR_CONFIRM: str = 'calendar_confirm'
     FILTER_START_DATE: str = 'filter_start_date'
@@ -1548,6 +1552,7 @@ class BotButton:
     ANIMATION_ON: str = '🎨GIF ✅'
     DOCUMENT_ON: str = '📄文档 ✅'
     TEXT_ON: str = '💬文本消息 ✅'
+    VIDEO_NOTE_ON: str = '📹视频笔记 ✅'
     VIDEO_OFF: str = '🎬视频 ❌'
     PHOTO_OFF: str = '🖼️图片 ❌'
     AUDIO_OFF: str = '🎵音频 ❌'
@@ -1555,6 +1560,7 @@ class BotButton:
     ANIMATION_OFF: str = '🎨GIF ❌'
     DOCUMENT_OFF: str = '📄文档 ❌'
     TEXT_OFF: str = '💬文本消息 ❌'
+    VIDEO_NOTE_OFF: str = '📹视频笔记 ❌'
     DATE_RANGE_SETTING: str = '📅设置日期范围'
     SELECT_START_DATE: str = '⏮️选择起始日期'
     SELECT_END_DATE: str = '⏭️选择结束日期'
