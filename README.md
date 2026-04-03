@@ -41,11 +41,11 @@
 
 *本项目按“原样”提供，不附带任何明示或暗示的保证。*
 
-|      作者      |                                                 [Gentlesprite](https://github.com/Gentlesprite)                                                  |
-| :------------: |:------------------------------------------------------------------------------------------------------------------------------------------------:|
-|  B站视频教程   |                                               [点击观看](https://www.bilibili.com/video/BV1nCp8evEwv)                                                |
-| Telegram交流群 |                                                      [点击加入](https://t.me/+6KKA-buFaixmNTE1)                                                      |
-|  **支持作者**  | [点击跳转](https://github.com/Gentlesprite/Telegram_Restricted_Media_Downloader/tree/main?tab=readme-ov-file#80%E6%94%AF%E6%8C%81%E4%BD%9C%E8%80%85) |
+|      作者       |       [Gentlesprite](https://github.com/Gentlesprite)        |
+| :-------------: | :----------------------------------------------------------: |
+| YouTube视频教程 |   [点击观看](https://www.youtube.com/watch?v=ucwKJu-MrBw)    |
+| Telegram交流群  |          [点击加入](https://t.me/+6KKA-buFaixmNTE1)          |
+|  **支持作者**   | [点击跳转](https://github.com/Gentlesprite/Telegram_Restricted_Media_Downloader/tree/main?tab=readme-ov-file#80%E6%94%AF%E6%8C%81%E4%BD%9C%E8%80%85) |
 
 # 1.0.下载地址:
 
@@ -1406,6 +1406,7 @@ temp_directory: /app/temp # 主机的路径为："temp/"。
     -v ./sessions:/app/sessions \
     -v ./downloads:/app/downloads \
     -v ./temp:/app/temp \
+    -v ./form:/app/form \
     -e TZ=Asia/Shanghai \
     --restart unless-stopped \
     gentlesprite/telegram_restricted_media_downloader:latest
@@ -1415,7 +1416,7 @@ temp_directory: /app/temp # 主机的路径为："temp/"。
 - 如果是通过`Windows`使用`wsl2`运行`docker`：
 
     ```bash
-    docker run -it --name trmd -v ./config:/app/TRMD -v ./sessions:/app/sessions -v ./downloads:/app/downloads -v ./temp:/app/temp -e TZ=Asia/Shanghai --restart unless-stopped gentlesprite/telegram_restricted_media_downloader:latest
+    docker run -it --name trmd -v ./config:/app/TRMD -v ./sessions:/app/sessions -v ./downloads:/app/downloads -v ./temp:/app/temp -v ./form:/app/form -e TZ=Asia/Shanghai --restart unless-stopped gentlesprite/telegram_restricted_media_downloader:latest
     ```
 
 
@@ -1444,6 +1445,7 @@ temp_directory: /app/temp # 主机的路径为："temp/"。
     -v ./sessions:/app/sessions \
     -v ./downloads:/app/downloads \
     -v ./temp:/app/temp \
+    -v ./form:/app/form \
     -p 2921:2921 \
     -w /app \
     -e TZ=Asia/Shanghai \
@@ -1455,7 +1457,7 @@ temp_directory: /app/temp # 主机的路径为："temp/"。
 - 如果是通过`Windows`使用`wsl2`运行`docker`：
 
   ```bash
-  docker run -d --name trmd -v ./config:/app/TRMD -v ./sessions:/app/sessions -v ./downloads:/app/downloads -v ./temp:/app/temp -p 2921:2921 -w /app -e TZ=Asia/Shanghai --restart unless-stopped gentlesprite/telegram_restricted_media_downloader:latest python main.py --config /app/TRMD/config.yaml --web 2921 --mode SESSION
+  docker run -d --name trmd -v ./config:/app/TRMD -v ./sessions:/app/sessions -v ./downloads:/app/downloads -v ./temp:/app/temp -v ./form:/app/form -p 2921:2921 -w /app -e TZ=Asia/Shanghai --restart unless-stopped gentlesprite/telegram_restricted_media_downloader:latest python main.py --config /app/TRMD/config.yaml --web 2921 --mode SESSION
   ```
 
 - 查看运行日志：
